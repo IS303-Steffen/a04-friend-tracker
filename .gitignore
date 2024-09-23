@@ -1,3 +1,6 @@
+# Stuff prof steffen added
+*.xlsx
+a4_solution_friend_tracker.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
