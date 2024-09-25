@@ -1,28 +1,91 @@
 import pytest
 import re
-import runpy
+import textwrap
 import sys
+import os
+import inspect
+import tempfile
 import importlib
 from config_test_cases import test_cases_list
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
 module_to_test = "a4_solution_friend_tracker"
 
-def load_or_reload_module():
+def load_or_reload_module(mock_inputs, inputs):
     try:
-        module_globals = runpy.run_module(module_to_test, run_name="__main__")
-        # If 'main' is defined in the module, call it and capture the return value
-        # if 'main' in module_globals:
-        #     returned_values = module_globals['main']()
-        #     print(returned_values)  # Should print the dictionary returned from main()
+        # module_globals = runpy.run_module(module_to_test, run_name="__main__")
+        # # If 'main' is defined in the module, call it and capture the return value
+        # # if 'main' in module_globals:
+        # #     returned_values = module_globals['main']()
+        # #     print(returned_values)  # Should print the dictionary returned from main()
 
-        return module_globals
+        # return module_globals
         # monkeypatch.setattr("__main__", "__main__")
-        # if module_to_test in sys.modules:
-        #     module = sys.modules[module_to_test]
-        #     return importlib.reload(module)          
-        # else:
-        #     return importlib.import_module(module_to_test)
+
+        captured_input_prompts = mock_inputs(inputs)
+        if module_to_test in sys.modules:
+            module = sys.modules[module_to_test]
+            module = importlib.reload(module)       
+        else:
+            module = importlib.import_module(module_to_test)
+
+        module_source = inspect.getsource(module)
+
+        # Step 2: Prepare to handle the 3 cases
+        main_func_name = None
+        if hasattr(module, 'main'):
+            main_func_name = 'main'
+        elif hasattr(module, 'Main'):
+            main_func_name = 'Main'
+
+        if main_func_name:
+            print(f"Handling case 3: Flattening {main_func_name}() function.")
+            main_body = flatten_main_code(module_source)
+        
+        # Updated condition to ignore commented-out __main__ block
+        elif re.search(r'^[^#]*if\s+__name__\s*==\s*[\'"]__main__[\'"]\s*:', module_source, re.MULTILINE):
+            print("Handling case 2: Flattening if __name__ == '__main__' block.")
+            main_body = flatten_main_code(module_source)
+
+        else:
+            return captured_input_prompts, module.__dict__
+
+        script_content = f"""
+# This script was dynamically generated from student_code
+{main_body}
+"""
+
+        # Step 4: Create a temporary Python file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode='w') as temp_script:
+            script_path = temp_script.name
+            temp_script.write(script_content)
+
+        # Step 5: Use importlib to dynamically import the temporary file and return the globals
+        try:
+            module_name = "dynamic_module"
+            spec = importlib.util.spec_from_file_location(module_name, script_path)
+            dynamic_module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = dynamic_module
+
+            # Apply the monkeypatch to the dynamically imported module
+            captured_input_prompts = mock_inputs(inputs)
+
+            # Execute the dynamic module
+            spec.loader.exec_module(dynamic_module)
+
+            # Return the globals from the dynamically loaded module
+            return captured_input_prompts, dynamic_module.__dict__
+
+        except Exception as e:
+            # If there's an error, remove the partially imported module
+            if module_name in sys.modules:
+                del sys.modules[module_name]
+            print(f"Error during import: {e}")
+            return None
+
+        finally:
+            os.remove(script_path)
+
     except ValueError:
         pytest.fail("Error: it seems that you are trying to convert the\n"
                 "inputs from input() into some other datatype. Because the\n"
@@ -36,6 +99,115 @@ def load_or_reload_module():
                     f"\n\nCheck the rubric to see the inputs used in the test cases."
                     f"\nYou may be collecting more inputs than expected. If you can't"
                     f"\nunderstand why you're getting this error, reach out to the TAs or professor.")
+
+
+def flatten_main_code(code):
+    """
+    Used when the student's code contains an if statement to only run if the
+    code's __name___ is main, or they use a main() funciton. It "flattens"
+    the code to be at the global level so the tests can access its global
+    variables and fuctions.
+
+    Written by ChatGPT, so I haven't examined it closely
+    """
+    lines = code.splitlines()
+    output_lines = []
+    # inside_block = False
+    # block_lines = []
+    # indent_level = None
+    skip_lines = set()
+    
+    # First, find the main function definition and extract its body
+    def_main_pattern = re.compile(r'^\s*def\s+main\s*\([^)]*\)\s*:')
+    main_func_start = None
+    main_func_indent = None
+    main_func_body = []
+    
+    for idx, line in enumerate(lines):
+        if main_func_start is None and def_main_pattern.match(line):
+            main_func_start = idx
+            stripped_line = line.lstrip()
+            main_func_indent = len(line) - len(stripped_line)
+            continue
+        if main_func_start is not None and idx > main_func_start:
+            # Check if the line is part of the main function body
+            line_expanded = line.expandtabs()
+            current_indent = len(line_expanded) - len(line_expanded.lstrip())
+            if line.strip() == '':
+                # Blank line inside function
+                main_func_body.append(line)
+            elif current_indent > main_func_indent:
+                # Line is part of the main function
+                main_func_body.append(line)
+            else:
+                # End of main function
+                break
+    
+    # Remove the main function definition and its body from the original code
+    if main_func_start is not None:
+        end_of_main = main_func_start + len(main_func_body) + 1
+        skip_lines.update(range(main_func_start, end_of_main))
+        # Dedent the main function body
+        dedented_main_body = textwrap.dedent('\n'.join(main_func_body))
+        dedented_main_lines = dedented_main_body.splitlines()
+    else:
+        dedented_main_lines = []
+    
+    # Now, process the rest of the code to handle if __name__ == "__main__"
+    inside_if_main = False
+    if_main_indent = None
+    if_main_body = []
+    
+    for idx, line in enumerate(lines):
+        if idx in skip_lines:
+            continue  # Skip lines we've already processed
+        line_expanded = line.expandtabs()
+        stripped_line = line_expanded.lstrip()
+        if not inside_if_main:
+            # Check for 'if __name__ == "__main__":' line
+            if re.match(r'^\s*if\s+__name__\s*==\s*[\'"]__main__[\'"]\s*:', line_expanded):
+                inside_if_main = True
+                if_main_indent = len(line_expanded) - len(stripped_line)
+                continue
+            else:
+                output_lines.append(line)
+        else:
+            # Inside if __name__ == "__main__" block
+            current_indent = len(line_expanded) - len(stripped_line)
+            if not stripped_line:
+                # Empty or whitespace-only line
+                if_main_body.append(line)
+            elif current_indent > if_main_indent:
+                # Line is part of the if __name__ == "__main__" block
+                # Check if the line is a call to main()
+                line_without_indent = line.lstrip()
+                if not re.match(r'^main\s*\([^)]*\)\s*$', line_without_indent):
+                    # Not a call to main(), include it
+                    if_main_body.append(line)
+                else:
+                    # It's a call to main(), skip it
+                    pass
+            else:
+                # Exited the block
+                # Dedent and add the block lines
+                if if_main_body:
+                    dedented_if_main_body = textwrap.dedent('\n'.join(if_main_body))
+                    dedented_if_main_lines = dedented_if_main_body.splitlines()
+                    output_lines.extend(dedented_if_main_lines)
+                if_main_body = []
+                inside_if_main = False
+                if_main_indent = None
+                output_lines.append(line)
+    # Add any remaining lines from the if __name__ == "__main__" block
+    if inside_if_main and if_main_body:
+        dedented_if_main_body = textwrap.dedent('\n'.join(if_main_body))
+        dedented_if_main_lines = dedented_if_main_body.splitlines()
+        output_lines.extend(dedented_if_main_lines)
+    
+    # Merge the dedented main function body into the output
+    output_lines.extend(dedented_main_lines)
+    
+    return '\n'.join(output_lines)
 
 # this replaces the built in input() function using monkeypatch. Can be called by any test.
 # it needs to be called for any assignment that uses the input() function, as that will cause

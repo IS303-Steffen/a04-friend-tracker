@@ -17,9 +17,9 @@ def test_1_input_prompts(mock_inputs, test_cases):
         invalid_input_prompts_concatenated = '\n'.join(invalid_input_prompts)
 
         # Call the fixture to mock input() with the desired inputs
-        captured_input_prompts = mock_inputs(inputs)
+        #captured_input_prompts = mock_inputs(inputs)
     
-        load_or_reload_module()
+        captured_input_prompts, student_globals = load_or_reload_module(mock_inputs, inputs)
         
         # Normalize the captured input prompts to remove spaces, punctuation, and symbols
         normalized_captured_input_prompts = [normalize_text(captured_prompt) for captured_prompt in captured_input_prompts]
