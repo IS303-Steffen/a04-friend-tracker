@@ -1,10 +1,10 @@
 import re
-from conftest import module_to_test
+from conftest import default_module_to_test
 
 def test_4_sufficient_comments():
     required_num_comments = 5
     # Open and read the student's script as a string
-    with open(f"{module_to_test}.py", "r") as file:
+    with open(f"{default_module_to_test}.py", "r") as file:
         script_content = file.read()
 
     # Regex to match single-line comments (#) and multi-line comments (''' ''' or """ """)
