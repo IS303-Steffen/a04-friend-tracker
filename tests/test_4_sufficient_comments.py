@@ -1,7 +1,7 @@
 import re
 from conftest import module_to_test
 
-def test_5_sufficient_comments():
+def test_4_sufficient_comments():
     required_num_comments = 5
     # Open and read the student's script as a string
     with open(f"{module_to_test}.py", "r") as file:

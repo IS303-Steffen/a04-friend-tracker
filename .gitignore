@@ -1,6 +1,9 @@
 # Stuff prof steffen added
-*.xlsx
 a4_solution_friend_tracker.py
+*Rubric*.xlsx
+~$*.xlsx
+.vscode/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -133,6 +133,7 @@ Exiting the program. Goodbye!
 ```
 
 Make sure you code can handle this case too: immediately choosing option 2 and checking for a friend before you've added any friends. If you have trouble with this case, the tip given in the instructions about empty dictionaries might help you.
+
 ```
 Menu:
 1. Add a Friend
@@ -165,22 +166,19 @@ This assignment contains the automated tests listed below. The tests will ignore
 <tbody>
     <tr>
         <td>1. Input Prompts</td>
-        <td>You must use <code>input()</code> to ask the user the following prompts:
+        <td>All the these tests are expecting 4 <code>input()</code> prompts to be present in your code. You must use <code>input()</code> to ask the user the following prompts:
         <ul>
-          <li><code>Enter your first name: </code></li>
+          <li><code>Enter an option (1, 2, or 3):  </code></li>
         </ul>
         <ul>
-          <li><code>Enter your last name: </code></li>
+          <li><code>Enter friend's name:  </code></li>
         </ul>
         <ul>
-          <li><code>Enter the feet of your height: </code></li>
-        </ul> 
+          <li><code>Enter &lt;Friend's name&gt;'s hobby: : </code></li>
+        </ul>
         <ul>
-          <li><code>Enter the inches of your height: </code></li>
+          <li><code>Enter a friend's name to find their hobby: </code></li>
         </ul> 
-        <ul>
-          <li><code>Enter your weight in pounds: </code></li>
-        </ul>   
         </td>
         <td>15</td>
     </tr>
@@ -188,8 +186,16 @@ This assignment contains the automated tests listed below. The tests will ignore
         <td>2. Printed Messages</td>
         <td>Your printed output must contain the phrase:
           <ul>
-            <li><code>has a BMI of</code></li>
-            <li><code>The associated category is</code></li>
+            <li><code>Menu:</code></li>
+            <li><code>1. Add a Friend</code></li>
+            <li><code>2. Find a Friend's Hobby</code></li>
+            <li><code>3. Quit</code></li>
+            <li><code>Invalid choice. Please choose a valid option.</code></li>
+            <li><code>Jimmy added to your dictionary!</code></li>
+            <li><code>1. Add a Friend</code></li>
+            <li><code>1. Add a Friend</code></li>
+            <li><code>1. Add a Friend</code></li>
+            <li><code>1. Add a Friend</code></li>
           </ul>        
         </td>
         <td>15</td>
