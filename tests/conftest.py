@@ -11,6 +11,26 @@ from config_test_cases import test_cases_list
 default_module_to_test = "a4_solution_friend_tracker"
 
 def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_test):
+    # Define the path to the test module inside the tests/ directory
+    test_module_path = os.path.join(os.getcwd(), "tests", "student_test_module.py")
+    
+    # Ensure the tests/ directory is in sys.path for imports
+    if os.path.join(os.getcwd(), "tests") not in sys.path:
+        sys.path.append(os.path.join(os.getcwd(), "tests"))
+
+    # Check if the student_test_module.py already exists
+    if os.path.exists(test_module_path):
+        print("student_test_module.py exists, loading it directly.")
+
+        captured_input_prompts = mock_inputs(inputs)
+        # If the file exists, import or reload the module directly
+        if 'student_test_module' in sys.modules:
+            dynamic_module = importlib.reload(sys.modules['student_test_module'])
+        else:
+            dynamic_module = importlib.import_module('student_test_module')
+
+        return captured_input_prompts, dynamic_module.__dict__
+
     try:
         captured_input_prompts = mock_inputs(inputs)
 
@@ -24,7 +44,6 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
         module_source = inspect.getsource(module)
 
         # Step 2: Handle flattening cases if required
-        # if the student used any if __name__ statements
         main_body = None
         main_func_name = None
         if hasattr(module, 'main'):
@@ -41,16 +60,15 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
         else:
             return captured_input_prompts, module.__dict__
 
-        # Step 3: Write the flattened code to a real Python file
-        new_module_path = os.path.join(os.getcwd(), "student_test_module.py")
-        with open(new_module_path, 'w') as new_module_file:
-            new_module_file.write(f"# Dynamically generated module for testing\n{main_body}")
+        # Step 3: Write the flattened code to a fixed Python file in the tests/ directory
+        os.makedirs(os.path.dirname(test_module_path), exist_ok=True)
+        with open(test_module_path, 'w') as test_module_file:
+            test_module_file.write(f"# Dynamically generated module for testing\n{main_body}")
 
         # Step 4: Apply the monkeypatch to the dynamically imported module
-        # so that the input function is replaced.
         captured_input_prompts = mock_inputs(inputs)
 
-        # Step 5: Import or reload the newly created module
+        # Step 5: Import or reload the newly created student_test_module from tests/
         if 'student_test_module' in sys.modules:
             dynamic_module = importlib.reload(sys.modules['student_test_module'])
         else:
@@ -62,10 +80,62 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
     except Exception as e:
         pytest.fail(f"Error during testing: {e}")
 
-    finally:
-        # get rid of the created module if it was able to create it
-        if os.path.exists(new_module_path):
-            os.remove(new_module_path)
+# def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_test):
+#     try:
+#         captured_input_prompts = mock_inputs(inputs)
+
+#         # Step 1: Import or reload the module normally
+#         if module_to_test in sys.modules:
+#             module = sys.modules[module_to_test]
+#             module = importlib.reload(module)
+#         else:
+#             module = importlib.import_module(module_to_test)
+
+#         module_source = inspect.getsource(module)
+
+#         # Step 2: Handle flattening cases if required
+#         # if the student used any if __name__ statements
+#         main_body = None
+#         main_func_name = None
+#         if hasattr(module, 'main'):
+#             main_func_name = 'main'
+#         elif hasattr(module, 'Main'):
+#             main_func_name = 'Main'
+
+#         if main_func_name:
+#             print(f"Handling case 3: Flattening {main_func_name}() function.")
+#             main_body = flatten_main_code(module_source)
+#         elif re.search(r'^[^#]*if\s+__name__\s*==\s*[\'"]__main__[\'"]\s*:', module_source, re.MULTILINE):
+#             print("Handling case 2: Flattening if __name__ == '__main__' block.")
+#             main_body = flatten_main_code(module_source)
+#         else:
+#             return captured_input_prompts, module.__dict__
+
+#         # Step 3: Write the flattened code to a real Python file
+#         new_module_path = os.path.join(os.getcwd(), "student_test_module.py")
+#         with open(new_module_path, 'w') as new_module_file:
+#             new_module_file.write(f"# Dynamically generated module for testing\n{main_body}")
+
+#         # Step 4: Apply the monkeypatch to the dynamically imported module
+#         # so that the input function is replaced.
+#         captured_input_prompts = mock_inputs(inputs)
+
+#         # Step 5: Import or reload the newly created module
+#         if 'student_test_module' in sys.modules:
+#             dynamic_module = importlib.reload(sys.modules['student_test_module'])
+#         else:
+#             dynamic_module = importlib.import_module('student_test_module')
+
+#         # Step 6: Return the captured input prompts and globals from the dynamic module
+#         return captured_input_prompts, dynamic_module.__dict__
+
+#     except Exception as e:
+#         pytest.fail(f"Error during testing: {e}")
+
+#     finally:
+#         # get rid of the created module if it was able to create it
+#         if os.path.exists(new_module_path):
+#             os.remove(new_module_path)
 
 
 def flatten_main_code(code):
