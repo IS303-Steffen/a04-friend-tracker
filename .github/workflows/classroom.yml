@@ -1,0 +1,56 @@
+name: Autograding Tests
+on:
+- push
+- repository_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+jobs:
+  run-autograding-tests:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: 3.x
+    - name: Install dependencies
+      run: python -m pip install --upgrade pip && pip install pandas openpyxl pytest pytest-subtests black<=22.3.0 tomli>=1.1.0 timeout-decorator~=0.5.0
+    - name: tests/test_3_proper_dictionary_values.py
+      id: tests-test-3-proper-dictionary-values-py
+      uses: classroom-resources/autograding-python-grader@v1
+      with:
+        timeout: 10
+        max-score: 15
+        setup-command: pytest -v tests/test_3_proper_dictionary_values.py
+    - name: tests/test_2_printed_messages.py
+      id: tests-test-2-printed-messages-py
+      uses: classroom-resources/autograding-python-grader@v1
+      with:
+        timeout: 10
+        max-score: 15
+        setup-command: pytest -v tests/test_2_printed_messages.py
+    - name: tests/test_4_sufficient_comments.py
+      id: tests-test-4-sufficient-comments-py
+      uses: classroom-resources/autograding-python-grader@v1
+      with:
+        timeout: 10
+        max-score: 15
+        setup-command: pytest -v tests/test_4_sufficient_comments.py
+    - name: tests/test_1_input_prompts.py
+      id: tests-test-1-input-prompts-py
+      uses: classroom-resources/autograding-python-grader@v1
+      with:
+        timeout: 10
+        max-score: 15
+        setup-command: pytest -v tests/test_1_input_prompts.py
+    - name: Autograding Reporter
+      uses: classroom-resources/autograding-grading-reporter@v1
+      env:
+        TESTS-TEST-3-PROPER-DICTIONARY-VALUES-PY_RESULTS: ${{steps.tests-test-3-proper-dictionary-values-py.outputs.result}}
+        TESTS-TEST-2-PRINTED-MESSAGES-PY_RESULTS: ${{steps.tests-test-2-printed-messages-py.outputs.result}}
+        TESTS-TEST-4-SUFFICIENT-COMMENTS-PY_RESULTS: ${{steps.tests-test-4-sufficient-comments-py.outputs.result}}
+        TESTS-TEST-1-INPUT-PROMPTS-PY_RESULTS: ${{steps.tests-test-1-input-prompts-py.outputs.result}}

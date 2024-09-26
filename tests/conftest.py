@@ -1,3 +1,8 @@
+'''
+conftest.py is a configuration file automatically accessed by pytest
+any @pytest.fixture created here is available to any other test file
+'''
+
 import pytest
 import re
 import textwrap
@@ -5,12 +10,25 @@ import sys
 import os
 import inspect
 import importlib
-from config_test_cases import test_cases_list
+from tests.setup_test_cases import test_cases_list
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
 default_module_to_test = "a4_solution_friend_tracker"
 
 def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_test):
+    """
+    Loads in student code with a monkeypatched input() function so that it can
+    run without pausing the terminal.
+
+    If students turn in code with variations of "if __name__ == '__main__'
+    logic, it will generate an altered version of their code 
+    in the "student_test_module.py" file with their main
+    logic "flattened" to the global level so that this function can still 
+    access their variables as if they were global. This is needed any time
+    student code uses input() or you want to check the values of global
+    variables for tests.
+    """
+    
     # Define the path to the test module inside the tests/ directory
     test_module_path = os.path.join(os.getcwd(), "tests", "student_test_module.py")
     
