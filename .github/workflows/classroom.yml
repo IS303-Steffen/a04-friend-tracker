@@ -55,3 +55,12 @@ jobs:
         command: python -m pytest -v tests/test_4_sufficient_comments.py
         timeout: 10
         max-score: 15
+    - name: Autograding Reporter
+      uses: classroom-resources/autograding-grading-reporter@v1
+      env:
+        TESTS-TEST-1-INPUT-PROMPTS-PY_RESULTS: ${{steps.tests-test-1-input-prompts-py.outputs.result}}
+        TESTS-TEST-2-PRINTED-MESSAGES-PY_RESULTS: ${{steps.tests-test-2-printed-messages-py.outputs.result}}
+        TESTS-TEST-3-PROPER-DICTIONARY-VALUES-PY_RESULTS: ${{steps.tests-test-3-proper-dictionary-values-py.outputs.result}}
+        TESTS-TEST-4-SUFFICIENT-COMMENTS-PY_RESULTS: ${{steps.tests-test-4-sufficient-comments-py.outputs.result}}
+      with:
+        runners: tests-test-1-input-prompts-py,tests-test-2-printed-messages-py,tests-test-3-proper-dictionary-values-py,tests-test-4-sufficient-comments-py

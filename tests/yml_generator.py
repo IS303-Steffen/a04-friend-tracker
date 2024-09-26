@@ -65,6 +65,23 @@ def generate_classroom_yml(python_version='3.12'):
             }
         })
 
+    # Add the reporter step with environment variables and the runners key
+    env_vars = {}
+    for test_name in test_names:
+        env_var_name = f'TESTS-{test_name.upper()}-PY_RESULTS'
+        env_vars[env_var_name] = f"${{{{steps.tests-{test_name}-py.outputs.result}}}}"
+
+    runners = ','.join([f'tests-{test_name}-py' for test_name in test_names])
+
+    job['steps'].append({
+        'name': 'Autograding Reporter',
+        'uses': 'classroom-resources/autograding-grading-reporter@v1',
+        'env': env_vars,
+        'with': {
+            'runners': runners
+        }
+    })
+
     # Ensure the .github/workflows directory exists
     os.makedirs('.github/workflows', exist_ok=True)
 
