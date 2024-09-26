@@ -13,6 +13,7 @@ by pytest as long as it begins with `test` as a prefix.
 - This repository needs to be a set as a public template in the GitHub settings after it has been pushed to GitHub.
 - GitHub Classroom uses GitHub Actions to run an autograding workflow every time a student pushes up their code. This is what will run the pytests.
 - GitHub Actions are reliant on a .yml configuration file located in .github/workflows. To automatically create this file based on the `test_*.py` files in the tests/ folder, just run the `yml_generator.py` script before pushing the repository to GitHub and referencing.
+    - Make sure you install ruamel.yaml for this to work `pip install ruamel.yaml`
     - IMPORTANT: Do not create any tests in GitHub Classroom when making the assignment. If you do, it will overwrite the .yml configuration. It is far quicker to just run the script here and not worry about setting any tests up through their GUI.
 
 

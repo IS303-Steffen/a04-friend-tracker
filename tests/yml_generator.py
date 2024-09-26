@@ -31,7 +31,7 @@ def generate_classroom_yml():
     job['steps'].append({
         'name': 'Set up Python',
         'uses': 'actions/setup-python@v3',
-        'with': {'python-version': '3.x'}
+        'with': {'python-version': '3.12'}
     })
     # If other dependencies are required, add them here:
     job['steps'].append({
@@ -41,6 +41,10 @@ def generate_classroom_yml():
 
     # Add test steps dynamically based on the test_*.py files in the tests/ folder
     test_files = [f for f in os.listdir('tests') if f.startswith('test_') and f.endswith('.py')]
+
+    # Sort the test files by the number in the filename to ensure they are in order
+    test_files.sort(key=lambda x: int(x.split('_')[1].split('.')[0]))
+
     test_names = []
     for test_file in test_files:
         test_name = test_file.replace('.py', '').replace('_', '-')
@@ -56,16 +60,21 @@ def generate_classroom_yml():
             }
         })
 
-    # Add the reporter step
+    # Add the reporter step with environment variables and the runners key
     env_vars = {}
     for test_name in test_names:
         env_var_name = f'TESTS-{test_name.upper()}-PY_RESULTS'
         env_vars[env_var_name] = f"${{{{steps.tests-{test_name}-py.outputs.result}}}}"
 
+    runners = ','.join([f'tests-{test_name}-py' for test_name in test_names])
+
     job['steps'].append({
         'name': 'Autograding Reporter',
         'uses': 'classroom-resources/autograding-grading-reporter@v1',
-        'env': env_vars
+        'env': env_vars,
+        'with': {
+            'runners': runners
+        }
     })
 
     # Ensure the .github/workflows directory exists
