@@ -25,7 +25,11 @@ jobs:
       with:
         timeout: 10
         max-score: 15
-        setup-command: pytest -v tests/test_1_input_prompts.py
+        setup-command: |
+          python --version  # This ensures Python 3.12 is being used
+          which python3.12
+          which python3.11
+          pytest -v tests/test_1_input_prompts.py
     - name: tests/test_2_printed_messages.py
       id: tests-test-2-printed-messages-py
       uses: classroom-resources/autograding-python-grader@v1
