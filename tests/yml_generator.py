@@ -1,7 +1,7 @@
 import os
 from ruamel.yaml import YAML
 
-def generate_classroom_yml(python_version='3.12'):
+def generate_classroom_yml(python_version='3.12.6'):
     # Initialize ruamel.yaml YAML instance
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -51,7 +51,9 @@ def generate_classroom_yml(python_version='3.12'):
         test_name = test_file.replace('.py', '').replace('_', '-')
         test_names.append(test_name)
         
-        # Dynamically find the correct Python version using `which python3`
+        # Use the specific python version path for setup-command
+        python_path = f'/opt/hostedtoolcache/Python/{python_version}/x64/bin/python'
+        
         job['steps'].append({
             'name': f'tests/{test_file}',
             'id': f'tests-{test_name}-py',
@@ -59,7 +61,7 @@ def generate_classroom_yml(python_version='3.12'):
             'with': {
                 'timeout': 10,
                 'max-score': 15,  # Adjust max-score as needed
-                'setup-command': f'$(which python{python_version}) -m pytest -v tests/{test_file}'
+                'setup-command': f'{python_path} -m pytest -v tests/{test_file}'
             }
         })
 
