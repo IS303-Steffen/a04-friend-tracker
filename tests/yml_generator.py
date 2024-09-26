@@ -20,7 +20,8 @@ def generate_classroom_yml(python_version='3.12'):
     data['jobs']['run-autograding-tests'] = {}
     job = data['jobs']['run-autograding-tests']
     job['runs-on'] = 'ubuntu-latest'
-    job['if'] = "github.actor != 'github-classroom[bot]'"
+    # Add your GitHub username here if you don't want this to run when you push the code.
+    job['if'] = "github.actor != 'github-classroom[bot]' && github.actor != 'jacobsteffenBYU'"
     job['steps'] = []
 
     # Add initial steps
