@@ -51,7 +51,7 @@ def generate_classroom_yml(python_version='3.12'):
         test_name = test_file.replace('.py', '').replace('_', '-')
         test_names.append(test_name)
         
-        # Add test step using the Python location from the environment variable
+        # Dynamically find the correct Python version using `which python3`
         job['steps'].append({
             'name': f'tests/{test_file}',
             'id': f'tests-{test_name}-py',
@@ -59,7 +59,7 @@ def generate_classroom_yml(python_version='3.12'):
             'with': {
                 'timeout': 10,
                 'max-score': 15,  # Adjust max-score as needed
-                'setup-command': f'${{{{ pythonLocation }}}}/bin/python -m pytest -v tests/{test_file}'
+                'setup-command': f'$(which python{python_version}) -m pytest -v tests/{test_file}'
             }
         })
 
@@ -89,4 +89,4 @@ def generate_classroom_yml(python_version='3.12'):
 
 if __name__ == '__main__':
     # Call the function with a default or custom Python version
-    generate_classroom_yml('3.12')  # Adjust this version as needed
+    generate_classroom_yml()  # Adjust this version as needed
