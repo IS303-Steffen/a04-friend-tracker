@@ -33,7 +33,7 @@ def generate_classroom_yml(python_version='3.12'):
         'uses': 'actions/setup-python@v3',
         'with': {'python-version': python_version}
     })
-    
+
     # Add install dependencies step
     job['steps'].append({
         'name': 'Install dependencies',
@@ -51,32 +51,19 @@ def generate_classroom_yml(python_version='3.12'):
         test_name = test_file.replace('.py', '').replace('_', '-')
         test_names.append(test_name)
         
+        # Use autograding-command-grader instead of autograding-python-grader
         job['steps'].append({
-        'name': f'tests/{test_file}',
-        'id': f'tests-{test_name}-py',
-        'run': f'pytest -v tests/{test_file}',
-        'with': {
-            'timeout': 10,
-            'max-score': 15  # Adjust max-score as needed
+            'name': f'tests/{test_file}',
+            'id': f'tests-{test_name}-py',
+            'uses': 'classroom-resources/autograding-command-grader@v1',
+            'with': {
+                'test-name': f'{test_name}',
+                'setup-command': '',
+                'command': f'python -m pytest -v tests/{test_file}',
+                'timeout': 10,
+                'max-score': 15  # Adjust max-score as needed
             }
         })
-
-    # Add the reporter step with environment variables and the runners key
-    env_vars = {}
-    for test_name in test_names:
-        env_var_name = f'TESTS-{test_name.upper()}-PY_RESULTS'
-        env_vars[env_var_name] = f"${{{{steps.tests-{test_name}-py.outputs.result}}}}"
-
-    runners = ','.join([f'tests-{test_name}-py' for test_name in test_names])
-
-    job['steps'].append({
-        'name': 'Autograding Reporter',
-        'uses': 'classroom-resources/autograding-grading-reporter@v1',
-        'env': env_vars,
-        'with': {
-            'runners': runners
-        }
-    })
 
     # Ensure the .github/workflows directory exists
     os.makedirs('.github/workflows', exist_ok=True)
@@ -87,4 +74,4 @@ def generate_classroom_yml(python_version='3.12'):
 
 if __name__ == '__main__':
     # Call the function with a default or custom Python version
-    generate_classroom_yml()  # Adjust this version as needed
+    generate_classroom_yml()
