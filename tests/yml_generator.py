@@ -1,7 +1,7 @@
 import os
 from ruamel.yaml import YAML
 
-def generate_classroom_yml():
+def generate_classroom_yml(python_version='3.12'):
     # Initialize ruamel.yaml YAML instance
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -31,9 +31,10 @@ def generate_classroom_yml():
     job['steps'].append({
         'name': 'Set up Python',
         'uses': 'actions/setup-python@v3',
-        'with': {'python-version': '3.12'}
+        'with': {'python-version': python_version}
     })
-    # If other dependencies are required, add them here:
+    
+    # Add install dependencies step
     job['steps'].append({
         'name': 'Install dependencies',
         'run': 'python -m pip install --upgrade pip && pip install pandas openpyxl pytest pytest-subtests \'black<=22.3.0\' \'tomli>=1.1.0\' \'timeout-decorator~=0.5.0\''
@@ -49,6 +50,8 @@ def generate_classroom_yml():
     for test_file in test_files:
         test_name = test_file.replace('.py', '').replace('_', '-')
         test_names.append(test_name)
+        
+        # Add test step using the Python location from the environment variable
         job['steps'].append({
             'name': f'tests/{test_file}',
             'id': f'tests-{test_name}-py',
@@ -56,7 +59,7 @@ def generate_classroom_yml():
             'with': {
                 'timeout': 10,
                 'max-score': 15,  # Adjust max-score as needed
-                'setup-command': f'pytest -v tests/{test_file}'
+                'setup-command': f'${{{{ pythonLocation }}}}/bin/python -m pytest -v tests/{test_file}'
             }
         })
 
@@ -85,4 +88,5 @@ def generate_classroom_yml():
         yaml.dump(data, file)
 
 if __name__ == '__main__':
-    generate_classroom_yml()
+    # Call the function with a default or custom Python version
+    generate_classroom_yml('3.12')  # Adjust this version as needed
