@@ -8,6 +8,12 @@ import re
 def example_code():
     return 2+2
 
+class Example():
+    def __init__(self, name) -> None:
+        self.name = name
+
+example = Example("test")
+
 if __name__ == "__main__":
 
     friends_hobbies = {}

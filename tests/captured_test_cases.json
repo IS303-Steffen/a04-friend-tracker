@@ -1,0 +1,108 @@
+[
+    {
+        "id_test_case": 1,
+        "test_case_description": "",
+        "inputs": [
+            "1",
+            "Jimmer",
+            "Basketball",
+            "2",
+            "3"
+        ],
+        "input_prompts": [
+            "Enter an option (1, 2, or 3): ",
+            "Enter friend's name: ",
+            "Enter Jimmer's hobby: ",
+            "Enter a friend's name to find their hobby: "
+        ],
+        "printed_messages": [
+            "\nMenu:",
+            "1. Add a Friend",
+            "2. Find a Friend's Hobby",
+            "3. Quit",
+            "\nJimmer added to your dictionary!",
+            "\nJimmer's hobby is Basketball.",
+            "\nExiting the program. Goodbye!",
+            "Wow this really works!"
+        ],
+        "bools": {
+            "continue_prompting": false
+        },
+        "ints": {},
+        "strings": {
+            "choice": "3",
+            "name": "Jimmer",
+            "hobby": "Basketball"
+        },
+        "floats": {},
+        "lists": {},
+        "dicts": {
+            "friends_hobbies": {
+                "Jimmer": "Basketball"
+            }
+        },
+        "Example": {
+            "example": {
+                "__class__": "Example",
+                "__attributes__": {
+                    "name": "test"
+                }
+            }
+        },
+        "invalid_input_prompts": [],
+        "invalid_printed_messages": []
+    },
+    {
+        "id_test_case": 2,
+        "test_case_description": "",
+        "inputs": [
+            "2",
+            "Jimmer",
+            "asdf",
+            "3"
+        ],
+        "input_prompts": [
+            "Enter an option (1, 2, or 3): ",
+            "Enter a friend's name to find their hobby: "
+        ],
+        "printed_messages": [
+            "\nMenu:",
+            "1. Add a Friend",
+            "2. Find a Friend's Hobby",
+            "3. Quit",
+            "\nJimmer is not in the dictionary.",
+            "\nInvalid choice. Please choose a valid option.",
+            "\nExiting the program. Goodbye!",
+            "Wow this really works!"
+        ],
+        "bools": {
+            "continue_prompting": false
+        },
+        "ints": {},
+        "strings": {
+            "choice": "3",
+            "name": "Jimmer"
+        },
+        "floats": {},
+        "lists": {},
+        "dicts": {
+            "friends_hobbies": {}
+        },
+        "Example": {
+            "example": {
+                "__class__": "Example",
+                "__attributes__": {
+                    "name": "test"
+                }
+            }
+        },
+        "invalid_input_prompts": [
+            "Enter Jimmer's hobby: ",
+            "Enter friend's name: "
+        ],
+        "invalid_printed_messages": [
+            "\nJimmer added to your dictionary!",
+            "\nJimmer's hobby is Basketball."
+        ]
+    }
+]

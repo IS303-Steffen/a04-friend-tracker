@@ -1,3 +1,4 @@
+max_score = 5 # This value is pulled by yml_generator.py to assign a score to this test.
 import re
 from conftest import default_module_to_test
 
@@ -21,4 +22,6 @@ def test_4_sufficient_comments():
     num_comments = len(comments)
 
     # Ensure there are at least 3 comments
-    assert num_comments >= required_num_comments, f"\n\nNot enough comments found. You need at least {required_num_comments}. Only {num_comments} comment(s) detected."
+    assert num_comments >= required_num_comments,(
+    f"\n\nNot enough comments found. You need at least {required_num_comments}.\n"
+    f"Only {num_comments} comment(s) detected.")

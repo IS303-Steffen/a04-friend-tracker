@@ -1,3 +1,4 @@
+max_score = 25 # This value is pulled by yml_generator.py to assign a score to this test.
 from conftest import normalize_text, load_or_reload_module
 import re
 
@@ -17,11 +18,12 @@ def test_2_printed_messages(capsys, mock_inputs, test_cases):
         expected_printed_messages_concatenated = '\n'.join(expected_printed_messages)
         invalid_printed_messages_concatenated = '\n'.join(invalid_printed_messages)
 
-        # Call the fixture to mock input() with the desired inputs
-        _ = mock_inputs(inputs)
+        # Load in the student's code (which runs anything at a global level)
+        # By passing in mock_inputs, the student's input() function will be
+        # replaced by a mock version that will auto insert the inputs for the 
+        # test case
 
-        # Load the module (if it is the first test run) or reload it into memory to reset global functions.
-        load_or_reload_module()
+        load_or_reload_module(mock_inputs, inputs)
 
         # Capture the output from the print statements
         captured = capsys.readouterr().out

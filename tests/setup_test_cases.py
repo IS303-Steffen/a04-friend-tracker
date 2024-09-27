@@ -36,12 +36,15 @@ printed_messages_dict = {
     8: "{wildcard} is not in the dictionary.",
     9: "Exiting the program. Goodbye!",
     10: "Invalid choice. Please choose a valid option.",
-    11: "Jimmer added to your dictionary!"
+    11: "Jimmer added to your dictionary!",
+    12: "Jimmer's hobby is Basketball.",
+    13: "Jimmer is already in your dictionary.",
 }
 
 dictionaries_dict = {
-    1: {},
-    2: {"Jimmer": "Basketball"},
+    1: None,
+    2: {},
+    3: {"Jimmer": "Basketball"},
 }
 
 # A function to resolve the IDs into actual values
@@ -63,15 +66,31 @@ test_cases_list = [
     'input_ids': [4, 3],  
     'expected_input_prompt_ids': [1], 
     'expected_printed_message_ids': [1, 2, 3, 4, 9, 10],
-    'expected_dictionary_ids': [1], 
+    'expected_dictionary_ids': [1,2], 
     },
-    { #2: Single name/hobby, no lookup
+    { # 2: Single name/hobby, no lookup
     'id_test_case': 2,
     'test_description': '2: Single name/hobby, no lookup',
     'input_ids': [1, 5, 6, 3],  
     'expected_input_prompt_ids': [1, 2, 3, 5], 
     'expected_printed_message_ids': [1, 2, 3, 4, 6, 9, 11],
-    'expected_dictionary_ids': [1], 
+    'expected_dictionary_ids': [3], 
+    },
+    { # 3: Single name/hobby, w/ lookup
+    'id_test_case': 3,
+    'test_description': '3: Single name/hobby, w/ lookup',
+    'input_ids': [1, 5, 6, 2, 5, 3],  
+    'expected_input_prompt_ids': [1, 2, 3, 5, 4], 
+    'expected_printed_message_ids': [1, 2, 3, 4, 9, 6, 11, 7, 12],
+    'expected_dictionary_ids': [3], 
+    },
+    { # 4: Single name/hobby, entering name twice
+    'id_test_case': 4,
+    'test_description': '4: Single name/hobby, entering name twice',
+    'input_ids': [1, 5, 6, 1, 5, 3],  
+    'expected_input_prompt_ids': [1, 2, 3, 5], 
+    'expected_printed_message_ids': [1, 2, 3, 4, 5, 13, 9, 6, 11, 7, 12],
+    'expected_dictionary_ids': [3], 
     },
 ]
 # adding values to each test case

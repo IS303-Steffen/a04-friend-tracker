@@ -1,12 +1,10 @@
 # Stuff prof steffen added
-#a4_solution_friend_tracker.py
+a4_solution_friend_tracker.py
 *Rubric*.xlsx
 ~$*.xlsx
 .vscode/*
 tests/student_test_module.py
-# tests/test_2_printed_messages.py
-# tests/test_3_proper_dictionary_values.py
-# tests/test_4_sufficient_comments.py
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

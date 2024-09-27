@@ -1,7 +1,8 @@
 import os
+import ast
 from ruamel.yaml import YAML
 
-def generate_classroom_yml(python_version='3.12'):
+def generate_classroom_yml(python_version='3.12.6'):
     # Initialize ruamel.yaml YAML instance
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -20,7 +21,6 @@ def generate_classroom_yml(python_version='3.12'):
     data['jobs']['run-autograding-tests'] = {}
     job = data['jobs']['run-autograding-tests']
     job['runs-on'] = 'ubuntu-latest'
-    # Add your GitHub username here if you don't want this to run when you push the code.
     job['if'] = "github.actor != 'github-classroom[bot]' && github.actor != 'jacobsteffenBYU'"
     job['steps'] = []
 
@@ -52,6 +52,10 @@ def generate_classroom_yml(python_version='3.12'):
         test_name = test_file.replace('.py', '').replace('_', '-')
         test_names.append(test_name)
         
+        # Get max-score from the test file
+        test_file_path = os.path.join('tests', test_file)
+        max_score = get_max_score_from_test(test_file_path)
+        
         # Use autograding-command-grader instead of autograding-python-grader
         job['steps'].append({
             'name': f'tests/{test_file}',
@@ -62,7 +66,7 @@ def generate_classroom_yml(python_version='3.12'):
                 'setup-command': '',
                 'command': f'python -m pytest -v tests/{test_file}',
                 'timeout': 10,
-                'max-score': 15  # Adjust max-score as needed
+                'max-score': max_score
             }
         })
 
@@ -90,6 +94,18 @@ def generate_classroom_yml(python_version='3.12'):
     with open('.github/workflows/classroom.yml', 'w') as file:
         yaml.dump(data, file)
 
+
+def get_max_score_from_test(file_path):
+    # Parse the test file to find the max_score variable
+    with open(file_path, 'r') as file:
+        tree = ast.parse(file.read(), filename=file_path)
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id == 'max_score':
+                        return node.value.n  # Extract and return max_score value
+    return 10  # Default max score if not specified
+
 if __name__ == '__main__':
     # Call the function with a default or custom Python version
-    generate_classroom_yml()
+    generate_classroom_yml('3.12.6')
