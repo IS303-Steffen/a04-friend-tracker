@@ -1,5 +1,5 @@
 max_score = 25 # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_or_reload_module
+from conftest import normalize_text, load_or_reload_module, format_error_message
 import re
 
 # checks if the expected printed messages actually appear, but doesn't check for specific
@@ -9,9 +9,9 @@ def test_2_printed_messages(capsys, mock_inputs, test_cases):
     # test_cases is a list of dictionaries. Each dictionary represents a test case
     for test_case in test_cases:
         # grab the necessary data from the test case dictionary
-        inputs = test_case["input_values"]
-        expected_printed_messages = test_case["expected_printed_message_values"]
-        invalid_printed_messages = test_case["invalid_printed_message_values"]
+        inputs = test_case["inputs"]
+        expected_printed_messages = test_case["printed_messages"]
+        invalid_printed_messages = test_case["invalid_printed_messages"]
 
         # format the data into a single string (convenient for error messages)
         inputs_concatenated = '\n'.join(inputs)
@@ -47,33 +47,18 @@ def test_2_printed_messages(capsys, mock_inputs, test_cases):
             # Check if the pattern exists in the normalized captured input prompts
             match = re.search(regex_pattern, normalized_captured_print_statements)
 
-            assert match, (
-                f"\n------------------------------------------------------------\n"
-                f"ERROR DESCRIPTION\n"
-                f"Test case {test_case["test_description"]}\n\n"
-                f"The expected printed message\n"
-                f"(ignoring punctuation / capitalization):\n\n"
+            assert match, format_error_message(
+                test_case,
+                ("The expected printed message (ignoring punctuation / capitalization):\n\n"
                 f"\"{expected_phrase}\"\n\n"
                 f"wasn't printed in your code.\n\n"
-                f"Below are all the printed messages from your code:\n"
-                f"(ignoring punctuation / capitalization):\n\n"
-                f"{normalized_captured_print_statements}\n\n"
-                f"------------------------------------------------------------\n"
-                f"INPUTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Enters these inputs in this order:\n\n"
-                f"{inputs_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"EXPECTED PRINTED MESSAGES\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Expects these printed messages:\n\n"
-                f"{expected_printed_messages_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"INVALID PRINTED MESSAGES\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Doesn't allow these invalid printed messages:\n\n"
-                f"{invalid_printed_messages_concatenated}\n"
+                f"Below are all the printed messages from your code (ignoring punctuation / capitalization):\n\n"
+                f"{normalized_captured_print_statements}\n\n"),
+                display_inputs=True,
+                display_printed_messages=True,
+                display_invalid_printed_messages=True
                 )
+
 
         # Ensure none of the invalid phrases are found in the normalized captured output
         for invalid_phrase in invalid_printed_messages:
@@ -86,29 +71,13 @@ def test_2_printed_messages(capsys, mock_inputs, test_cases):
             # Check if the pattern exists in the normalized captured input prompts
             match = re.search(regex_pattern, normalized_captured_print_statements)
 
-            assert not match, (
-                f"\n------------------------------------------------------------\n"
-                f"ERROR DESCRIPTION\n"
-                f"Test case {test_case["test_description"]}\n\n"
-                f"You used an invalid printed message\n"
-                f"(ignoring punctuation / capitalization):\n\n"
+            assert not match, format_error_message(
+                ("You used an invalid printed message (ignoring punctuation / capitalization):\n\n"
                 f"\"{invalid_phrase}\"\n\n"
-                f"Below are all the printed messages from your code\n"
-                f"(ignoring punctuation / capitalization):\n\n"
-                f"{normalized_captured_print_statements}\n\n"
-                f"------------------------------------------------------------\n"
-                f"INPUTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Enters these inputs in this order:\n\n"
-                f"{inputs_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"EXPECTED PRINTED MESSAGES\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Expects these printed messages:\n\n"
-                f"{expected_printed_messages_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"INVALID PRINTED MESSAGES\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Doesn't allow these invalid printed messages:\n\n"
-                f"{invalid_printed_messages_concatenated}\n"
+                f"Below are all the printed messages from your code (ignoring punctuation / capitalization):\n\n"
+                f"{normalized_captured_print_statements}\n\n"),
+                test_case=test_case,
+                display_inputs=True,
+                display_printed_messages=True,
+                display_invalid_printed_messages=True
                 )

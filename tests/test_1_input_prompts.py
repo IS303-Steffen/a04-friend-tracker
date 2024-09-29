@@ -1,5 +1,5 @@
 max_score = 25 # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_or_reload_module
+from conftest import normalize_text, load_or_reload_module, format_error_message
 import re
 
 # checks if the input prompts (from using input()) contain the expected prompts.
@@ -8,14 +8,9 @@ def test_1_input_prompts(mock_inputs, test_cases):
     # test_cases is a list of dictionaries. Each dictionary represents a test case
     for test_case in test_cases:
         # grab the necessary data from the test case dictionary
-        inputs = test_case["input_values"]
-        expected_input_prompts = test_case["expected_input_prompt_values"]
-        invalid_input_prompts = test_case["invalid_input_prompt_values"]
-
-        # format the data into a single string (convenient for error messages)
-        inputs_concatenated = '\n'.join(inputs)
-        expected_input_prompts_concatenated = '\n'.join(expected_input_prompts)
-        invalid_input_prompts_concatenated = '\n'.join(invalid_input_prompts)
+        inputs = test_case["inputs"]
+        expected_input_prompts = test_case["input_prompts"]
+        invalid_input_prompts = test_case["invalid_input_prompts"]
 
         # Load in the student's code (which runs anything at a global level)
         # By passing in mock_inputs, the student's input() function will be
@@ -42,32 +37,16 @@ def test_1_input_prompts(mock_inputs, test_cases):
             # Check if the pattern exists in the normalized captured input prompts
             match = re.search(regex_pattern, normalized_captured_input_prompts)
 
-            assert match, (
-                f"\n------------------------------------------------------------\n"
-                f"ERROR DESCRIPTION\n"
-                f"Test case {test_case["test_description"]}\n\n"
-                f"The expected input prompt\n"
-                f"(ignoring punctuation / capitalization):\n\n"
+            assert match, format_error_message(
+                ("The expected input prompt (ignoring punctuation / capitalization):\n\n"
                 f"\"{expected_phrase}\"\n\n"
                 f"wasn't found in the input() function output.\n\n"
-                f"Below are all the input prompts from your code:\n"
-                f"(ignoring punctuation / capitalization):\n\n"
-                f"{normalized_captured_input_prompts}\n\n"
-                f"------------------------------------------------------------\n"
-                f"INPUTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Enters these inputs in this order:\n\n"
-                f"{inputs_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"EXPECTED INPUT PROMPTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Expects these input prompts:\n\n"
-                f"{expected_input_prompts_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"INVALID INPUT PROMPTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Doesn't allow these invalid input prompts:\n\n"
-                f"{invalid_input_prompts_concatenated}\n"
+                f"Below are all the input prompts from your code (ignoring punctuation / capitalization):\n\n"
+                f"{normalized_captured_input_prompts}\n\n"),
+                test_case=test_case,
+                display_inputs=True,
+                display_input_prompts=True,
+                display_invalid_input_prompts=True
                 )
 
         # Ensure none of the invalid phrases are found in the normalized captured output
@@ -81,29 +60,13 @@ def test_1_input_prompts(mock_inputs, test_cases):
             # Check if the pattern exists in the normalized captured input prompts
             match = re.search(regex_pattern, normalized_captured_input_prompts)
 
-            assert not match, (
-                f"\n------------------------------------------------------------\n"
-                f"ERROR DESCRIPTION\n"
-                f"Test case {test_case["test_description"]}\n\n"
-                f"You used an invalid input() prompt\n"
-                f"(ignoring punctuation / capitalization):\n\n"
+            assert not match, format_error_message(
+                ("You used an invalid input() prompt (ignoring punctuation / capitalization):\n\n"
                 f"\"{invalid_phrase}\"\n\n"
-                f"Below are all the input prompts from your code\n"
-                f"(ignoring punctuation / capitalization):\n\n"
-                f"{normalized_captured_input_prompts}\n\n"
-                f"------------------------------------------------------------\n"
-                f"INPUTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Enters these inputs in this order:\n\n"
-                f"{inputs_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"EXPECTED INPUT PROMPTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Expects these input prompts:\n\n"
-                f"{expected_input_prompts_concatenated}\n"
-                f"------------------------------------------------------------\n"
-                f"INVALID INPUT PROMPTS\n"
-                f"Test case {test_case["test_description"]}\n"
-                f"Doesn't allow these invalid input prompts:\n\n"
-                f"{invalid_input_prompts_concatenated}\n"
+                f"Below are all the input prompts from your code (ignoring punctuation / capitalization):\n\n"
+                f"{normalized_captured_input_prompts}\n\n"),
+                test_case=test_case,
+                display_inputs=True,
+                display_input_prompts=True,
+                display_invalid_input_prompts=True
                 )

@@ -1,21 +1,8 @@
-import numpy
-import re
-
 # Name: Jacob Steffen
 # Description: This allows you to enter friend's names and their hobby,
 # then look up the friend and hobby.
 
-def example_code():
-    return 2+2
-
-class Example():
-    def __init__(self, name) -> None:
-        self.name = name
-
-example = Example("test")
-
 if __name__ == "__main__":
-
     friends_hobbies = {}
     continue_prompting = True
 
@@ -51,7 +38,3 @@ if __name__ == "__main__":
         else:
             print("\nInvalid choice. Please choose a valid option.")
 
-def another_example():
-    print("Wow this really works!")
-
-another_example()

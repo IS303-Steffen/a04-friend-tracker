@@ -1,11 +1,23 @@
+'''
+DESCRIPTION:
+
+Instead of manually writing out test cases, I opted to create this script
+that will run my solution file and automatically store any inputs, printed
+messages, and variables that are created during the run in a JSON file. Each
+additional run will append the new data from that run in the JSON file.
+'''
+
 import builtins
 import json
 import os
 import types
 
-# Define the paths
-CURRENT_DIR = os.path.dirname(__file__)
-CAPTURED_TEST_CASES_FILE = os.path.join(CURRENT_DIR, 'captured_test_cases.json')
+# name of the file that will be run to generate the test cases from:
+solution_file_to_run = "a4_solution_friend_tracker.py"
+# name of the json file that is created after running the script:
+json_export_filename = 'test_cases_drafts.json'
+
+
 
 # List of data types to track
 tracked_data_types = [
@@ -28,6 +40,10 @@ type_to_key = {
     dict: 'dicts',
     # Custom objects will have keys based on their class names
 }
+
+# Define the paths
+CURRENT_DIR = os.path.dirname(__file__)
+CAPTURED_TEST_CASES_FILE = os.path.join(CURRENT_DIR, json_export_filename)
 
 # Initialize test_case_data
 test_case_data = {}
@@ -59,7 +75,7 @@ def print(*args, **kwargs):
     original_print(*args, **kwargs)
 
 # Function to safely serialize variables
-def safe_serialize(value, variable_name, test_case_id):
+def safe_serialize(value):
     try:
         json.dumps(value)
         return value  # If serialization succeeds, return the value.
@@ -84,7 +100,7 @@ def capture_global_variables(test_case_id, new_global_vars):
             isinstance(value, types.ModuleType)
         ):
             continue
-        serialized_value = safe_serialize(value, var_name, test_case_id)
+        serialized_value = safe_serialize(value)
         # Determine the type key for the variable
         for data_type in tracked_data_types:
             if isinstance(value, data_type):
@@ -114,66 +130,35 @@ def remove_duplicates(lst):
 def save_test_case(test_cases):
     global test_case_data
 
-    # Compute invalid_input_prompts and invalid_printed_messages
+    # Append the new test case
+    test_cases.append(test_case_data)
+
+    # Build a set of all input prompts and printed messages across all test cases
     all_input_prompts = set()
     all_printed_messages = set()
     for tc in test_cases:
         all_input_prompts.update(tc.get("input_prompts", []))
         all_printed_messages.update(tc.get("printed_messages", []))
-    current_input_prompts = set(test_case_data.get("input_prompts", []))
-    current_printed_messages = set(test_case_data.get("printed_messages", []))
 
-    test_case_data["invalid_input_prompts"] = list(all_input_prompts - current_input_prompts)
-    test_case_data["invalid_printed_messages"] = list(all_printed_messages - current_printed_messages)
+    # Now, for each test case, compute invalid_input_prompts and invalid_printed_messages
+    for tc in test_cases:
+        existing_input_prompts = set(tc.get("input_prompts", []))
+        existing_printed_messages = set(tc.get("printed_messages", []))
 
-    # Remove duplicates from lists
-    test_case_data["input_prompts"] = remove_duplicates(test_case_data.get("input_prompts", []))
-    test_case_data["inputs"] = remove_duplicates(test_case_data.get("inputs", []))
-    test_case_data["printed_messages"] = remove_duplicates(test_case_data.get("printed_messages", []))
-    test_case_data["invalid_input_prompts"] = remove_duplicates(test_case_data.get("invalid_input_prompts", []))
-    test_case_data["invalid_printed_messages"] = remove_duplicates(test_case_data.get("invalid_printed_messages", []))
+        tc["invalid_input_prompts"] = list(all_input_prompts - existing_input_prompts)
+        tc["invalid_printed_messages"] = list(all_printed_messages - existing_printed_messages)
 
-    # Build the ordered keys list dynamically
-    ordered_keys = [
-        "id_test_case",
-        "test_case_description",
-        "inputs",
-        "input_prompts",
-        "printed_messages",
-    ]
+        # Remove duplicates and sort if necessary
+        tc["input_prompts"] = remove_duplicates(tc["input_prompts"])
+        tc["printed_messages"] = remove_duplicates(tc["printed_messages"])
+        tc["invalid_input_prompts"] = remove_duplicates(tc["invalid_input_prompts"])
+        tc["invalid_printed_messages"] = remove_duplicates(tc["invalid_printed_messages"])
 
-    # Add keys for tracked data types
-    for data_type in tracked_data_types:
-        type_key = type_to_key.get(data_type, 'others')
-        if type_key in test_case_data:
-            ordered_keys.append(type_key)
-
-    # Add keys for custom classes
-    custom_class_keys = [key for key in test_case_data.keys() if key not in ordered_keys and key not in [
-        'invalid_input_prompts', 'invalid_printed_messages', 'others']]
-    ordered_keys.extend(custom_class_keys)
-
-    # Always include 'others' if it exists
-    if 'others' in test_case_data:
-        ordered_keys.append('others')
-
-    # Add invalid input prompts and printed messages
-    ordered_keys.extend([
-        "invalid_input_prompts",
-        "invalid_printed_messages"
-    ])
-
-    # Reorder test_case_data based on ordered_keys
-    ordered_test_case_data = {key: test_case_data[key] for key in ordered_keys if key in test_case_data}
-
-    # Append the new test case
-    test_cases.append(ordered_test_case_data)
 
     # Save back to the JSON file
     with open(CAPTURED_TEST_CASES_FILE, 'w') as f:
         json.dump(test_cases, f, indent=4)
 
-# The main function to run the solution file and capture test case data
 def run_and_capture(solution_file):
     global test_case_data
     # Re-initialize test_case_data
@@ -225,6 +210,10 @@ def run_and_capture(solution_file):
     # Capture global variables at the end
     capture_global_variables(test_case_id, new_global_vars)
 
+    # Use original_input directly to avoid capturing this prompt
+    description = original_input("Please provide a description for this test case: ")
+    test_case_data["test_case_description"] = description
+
     # Save the test case data to a JSON file
     save_test_case(test_cases)
 
@@ -234,4 +223,4 @@ def run_and_capture(solution_file):
 
 if __name__ == '__main__':
     # Replace with the name of the file to collect test cases from
-    run_and_capture("a4_solution_friend_tracker.py")
+    run_and_capture(solution_file_to_run)

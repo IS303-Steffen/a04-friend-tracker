@@ -12,7 +12,6 @@ import os
 import inspect
 import importlib
 import json
-from tests.setup_test_cases import test_cases_list
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
 default_module_to_test = "a4_solution_friend_tracker"
@@ -25,14 +24,13 @@ CURRENT_DIR = os.path.dirname(__file__)
 
 @pytest.fixture
 def test_cases():
-    # Path to the captured test cases JSON file
-    captured_test_cases_file = os.path.join(CURRENT_DIR, 'captured_test_cases.json')
+    # Path to the final captured test cases JSON file
+    captured_test_cases_file = os.path.join(CURRENT_DIR, 'test_cases_final.json')
     
     # Load the test cases
     with open(captured_test_cases_file, 'r') as f:
         test_cases = json.load(f)
     
-    # Return the test cases directly, no need to unpickle variables
     return test_cases
 
 @pytest.fixture
@@ -49,9 +47,11 @@ def mock_inputs(monkeypatch):
         captured_input_prompts = []
 
         # Define the mock input function
-        def mock_input(prompt):
-            captured_input_prompts.append(prompt)
-            return next(input_iter, '') # grabs the next input, or a blank string if empty
+        def mock_input(prompt=''):
+            if prompt != '':
+                captured_input_prompts.append(prompt)
+                return next(input_iter, '') # grabs the next input, or a blank string if empty
+            return ''
 
         # Use monkeypatch to replace the built-in input() with the mock input function
         monkeypatch.setattr('builtins.input', mock_input)
@@ -59,6 +59,25 @@ def mock_inputs(monkeypatch):
         return captured_input_prompts
 
     return _mock_inputs
+
+
+# =====
+# HOOKS
+# =====
+
+# Global set to track which tests have been run
+_run_tests = set()
+
+# Hook that runs before each test is executed
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_call(item):
+    test_name = item.nodeid  # Get the test's identifier (e.g., file path + test name)
+    
+    if test_name not in _run_tests:
+        print(f"First time running {test_name}")
+        _run_tests.add(test_name)
+    else:
+        print(f"{test_name} has already been run in this session")
 
 # ================
 # HELPER FUNCTIONS
@@ -73,7 +92,9 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
     logic, it will generate an altered version of their code 
     in the "student_test_module.py" file with their main
     logic "flattened" to the global level so that this function can still 
-    access their variables as if they were global. This is needed any time
+    access their variables as if they were global.
+    
+    This function is needed any time
     student code uses input() or you want to check the values of global
     variables for tests.
     """
@@ -86,7 +107,8 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
         sys.path.append(os.path.join(os.getcwd(), "tests"))
 
     # Check if the student_test_module.py already exists
-    if os.path.exists(test_module_path):
+    # and that this is not the first pytest being run for this session.
+    if os.path.exists(test_module_path) and len(_run_tests) > 1:
         print("student_test_module.py exists, loading it directly.")
 
         captured_input_prompts = mock_inputs(inputs)
@@ -263,26 +285,125 @@ def normalize_text(text):
     and removes any extra symbols, except for negative signs and decimals
     associated with numbers.
     """
-    # Lowercase the input
-    text = text.lower()
+    if isinstance(text, str):
+        # Lowercase the input
+        text = text.lower()
+        
+        # Replace newlines with a single space
+        text = text.replace('\n', ' ')
+        
+        # Replace multiple spaces with a single space
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Remove periods not between digits
+        text = re.sub(r'(?<!\d)\.(?!\d)', '', text)
+        
+        # Remove hyphens not followed by digits (negative signs at the beginning of numbers)
+        text = re.sub(r'-(?!\d)', '', text)
+        
+        # Remove all other punctuation and symbols
+        text = re.sub(r'[!"#$%&\'()*+,/:;<=>?@\[\]^_`{|}~]', '', text)
+        
+        # Replace multiple spaces again in case punctuation removal created extra spaces
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Strip leading and trailing spaces
+        return text.strip()
+    else:
+        return text
+
+#74 characters should be the max
+def format_error_message(custom_message: str = None,
+                         test_case: dict = None,
+                         display_inputs: bool = False,
+                         display_input_prompts: bool = False,
+                         display_invalid_input_prompts: bool = False,
+                         display_printed_messages: bool = False,
+                         display_invalid_printed_messages: bool = False,
+                         line_length: int = 74) -> str:
     
-    # Replace newlines with a single space
-    text = text.replace('\n', ' ')
+    # some starting strings. All messages will be appended to error_message
+    error_message = ''
+    divider = f"\n{"-"*line_length}\n"
+    if test_case:
+        test_case_description = f"Test Case {test_case["id_test_case"]}: \"{test_case["test_case_description"]}\"\n\n"
+    else:
+        test_case_description = ''
+
+    if custom_message:
+        error_message += divider
+        error_message += f"ERROR DESCRIPTION:\n{test_case_description}"
+        error_message += insert_newline_at_last_space(custom_message, line_length)
     
-    # Replace multiple spaces with a single space
-    text = re.sub(r'\s+', ' ', text)
+    if display_inputs:
+        inputs_concatenated = '\n'.join(test_case["inputs"])
+        error_message += divider
+        error_message += (f"INPUTS:\n{test_case_description}"
+                          f"Enters these inputs in this order:\n\n")
+        error_message += inputs_concatenated
+
+    if display_input_prompts:
+        expected_input_prompts_concatenated = '\n'.join(test_case["input_prompts"])
+        error_message += divider
+        error_message += (f"EXPECTED INPUT PROMPTS:\n{test_case_description}"
+                          f"Expects these input prompts:\n\n")
+        error_message += expected_input_prompts_concatenated
+
+    if display_invalid_input_prompts:
+        invalid_input_prompts_concatenated = '\n'.join(test_case["invalid_input_prompts"])
+        error_message += divider
+        error_message += (f"INVALID INPUT PROMPTS:\n{test_case_description}"
+                          f"Doesn't allow these invalid input prompts:\n\n")
+        error_message += invalid_input_prompts_concatenated
+
+    if display_printed_messages:
+        expected_printed_messages_concatenated = '\n'.join(test_case["printed_messages"])
+        error_message += divider
+        error_message += (f"EXPECTED PRINTED MESSAGES:\n{test_case_description}"
+                          f"Expects these printed messages:\n\n")
+        error_message += expected_printed_messages_concatenated
+
+    if display_invalid_printed_messages:
+        invalid_printed_messages_concatenated = '\n'.join(test_case["invalid_printed_messages"])
+        error_message += divider
+        error_message += (f"INVALID PRINTED MESSAGES:\n{test_case_description}"
+                          f"Doesn't allow these invalid printed messages:\n\n")
+        error_message += invalid_printed_messages_concatenated
+
+    error_message += "\n"
+
+    return error_message
+
+def insert_newline_at_last_space(s, width=74):
+    lines = []
+    current_line = ""
     
-    # Remove periods not between digits
-    text = re.sub(r'(?<!\d)\.(?!\d)', '', text)
+    for char in s:
+        current_line += char
+        
+        # If we hit a newline, append the current line and reset the line
+        if char == '\n':
+            lines.append(current_line.strip())  # Add the line and strip any extra spaces
+            current_line = ""
+            continue
+        
+        # If the current line exceeds the width, break at the last space
+        if len(current_line) > width:
+            # Find the last space before the width limit
+            break_index = current_line.rfind(' ', 0, width)
+            
+            # If no space is found, break at the width limit
+            if break_index == -1:
+                break_index = width
+            
+            # Append the part of the line before the break
+            lines.append(current_line[:break_index].strip())
+            
+            # Reset current_line to the remaining unprocessed part of the string
+            current_line = current_line[break_index:].lstrip()  # Remove leading spaces in the next line
+            
+    # Append the last part of the string (if any)
+    if current_line:
+        lines.append(current_line.strip())
     
-    # Remove hyphens not followed by digits (negative signs at the beginning of numbers)
-    text = re.sub(r'-(?!\d)', '', text)
-    
-    # Remove all other punctuation and symbols
-    text = re.sub(r'[!"#$%&\'()*+,/:;<=>?@\[\]^_`{|}~]', '', text)
-    
-    # Replace multiple spaces again in case punctuation removal created extra spaces
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Strip leading and trailing spaces
-    return text.strip()
+    return '\n'.join(lines)
