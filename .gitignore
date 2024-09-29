@@ -4,6 +4,7 @@ a4_solution_friend_tracker.py
 ~$*.xlsx
 .vscode/*
 tests/student_test_module.py
+test_cases_table_output.html
 
 
 # Byte-compiled / optimized / DLL files

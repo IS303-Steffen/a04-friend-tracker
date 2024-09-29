@@ -5,7 +5,7 @@ from conftest import normalize_text, load_or_reload_module, format_error_message
 
 def test_3_proper_dictionary_values(mock_inputs, test_cases):
     for test_case in test_cases:
-        if test_case["id_test_case"] in [3]:
+        if test_case["id_test_case"] in [3,5]:
             continue
         inputs = test_case["inputs"]
         # this provides a dictionary of dictionaries. Each key is a variable name,

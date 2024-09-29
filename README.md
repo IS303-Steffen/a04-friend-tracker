@@ -32,7 +32,7 @@ Print out a menu that gives the user 3 options:
 It may help to start out with an empty dictionary. You can make an empty dictionary like this:
 - `example_dictionary = {}`
 
-This way you have something to work with even before you have added anything to it. FYI, you can do the same thing with lists too, but just use square brackets instead of curly brackets:
+This way you have something to work with even before you have added anything to it. <br><br>FYI, you can do the same thing with lists too, but just use square brackets instead of curly brackets:
 - `example_list = []`
 
 
@@ -54,9 +54,7 @@ This way you have something to work with even before you have added anything to 
     - `Invalid choice. Please choose a valid option.`
 
 > ### After the user completes any option:
-The menu with the 3 choices should continually reappear every time choice 1, 2, or an invalid 
-input is entered, meaning the user can input as many friends/hobbies as they want, and search 
-for friends’ hobbies. The program should only end if the user enters 3.
+The menu with the 3 choices should continually reappear every time choice 1, 2, or an invalid input is entered, meaning the user can input as many friends/hobbies as they want, and search for friends’ hobbies as many times as they want. The program should only end if the user enters 3 when the menu is displayed.
 
 ## Example Output
 Below is an example of
@@ -155,6 +153,9 @@ Exiting the program. Goodbye!
 
 ## Rubric
 This assignment contains the automated tests listed below. The tests will ignore spacing, capitalization, and punctuation, but you will fail the tests if you spell something wrong or calculate something incorrectly.
+
+After this table, see the Test Cases table to see what inputs will be run for each of the tests below. To receive points for test, the test must pass each of the individual test cases.
+
 <table>
 <thead>
     <tr>
@@ -166,7 +167,7 @@ This assignment contains the automated tests listed below. The tests will ignore
 <tbody>
     <tr>
         <td>1. Input Prompts</td>
-        <td>All the these tests are expecting 4 <code>input()</code> prompts to be present in your code. You must use <code>input()</code> to ask the user the following prompts:
+        <td>All the these tests are expecting 4 <code>input()</code> prompts to be present in your code. You must use <code>input()</code> to ask the user the following prompts, depending on the input the user provides:
         <ul>
           <li><code>Enter an option (1, 2, or 3):  </code></li>
         </ul>
@@ -184,98 +185,30 @@ This assignment contains the automated tests listed below. The tests will ignore
     </tr>
     <tr>
         <td>2. Printed Messages</td>
-        <td>Your printed output must contain the phrase:
+        <td>Your printed output must contain these phrases, though only some should print out depending on what the user inputs:
           <ul>
             <li><code>Menu:</code></li>
             <li><code>1. Add a Friend</code></li>
             <li><code>2. Find a Friend's Hobby</code></li>
             <li><code>3. Quit</code></li>
+            <li><code>&lt;Friend's name&gt; is already in your dictionary.</code></li>
+            <li><code>&lt;Friend's name&gt; added to your dictionary!</code></li>
+            <li><code>&lt;Friend's name&gt;'s hobby is &lt;Friend's hobby&gt;.</code></li>
+            <li><code>&lt;Friend's name&gt; is not in the dictionary.</code></li>
+            <li><code>Exiting the program. Goodbye!</code></li>
             <li><code>Invalid choice. Please choose a valid option.</code></li>
-            <li><code>Jimmy added to your dictionary!</code></li>
-            <li><code>1. Add a Friend</code></li>
-            <li><code>1. Add a Friend</code></li>
-            <li><code>1. Add a Friend</code></li>
-            <li><code>1. Add a Friend</code></li>
           </ul>        
         </td>
         <td>15</td>
     </tr>
     <tr>
-        <td>3. BMI Numerical Calculation</td>
-        <td>Your printed output must contain an accurately calculated BMI.<br><br>
-        The following cases will be tested:<br><br>
-        <table border="1">
-          <thead>
-            <tr>
-              <th>Input</th>
-              <th>Expected Output</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>"John", "Doe", "5", "6", "114"</code></td>
-              <td><code>'18.40' or '18.4'</code></td>
-            </tr>
-            <tr>
-              <td><code>"Jane", "Smith", "5", "6", "115"</code></td>
-              <td><code>"18.56"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Bob", "Brown", "5", "6", "154"</code></td>
-              <td><code>"24.85"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Charlie", "Johnson", "5", "6", "185"</code></td>
-              <td><code>"29.86"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Diana", "Wilson", "5", "6", "186"</code></td>
-              <td><code>"30.02"</code></td>
-            </tr>
-          </tbody>
-        </table>
-        </td>
-        <td>30</td>
-    </tr>
-        <tr>
-        <td>4. BMI Categorical Calculation</td>
-        <td>Your printed output must contain an accurately calculated BMI category.<br><br>
-        The following cases will be tested:<br><br>
-        <table border="1">
-          <thead>
-            <tr>
-              <th>Input</th>
-              <th>Expected Output</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>"John", "Doe", "5", "6", "114"</code></td>
-              <td><code>"Underweight"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Jane", "Smith", "5", "6", "115"</code></td>
-              <td><code>"Normal weight"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Bob", "Brown", "5", "6", "154"</code></td>
-              <td><code>"Normal weight"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Charlie", "Johnson", "5", "6", "185"</code></td>
-              <td><code>"Overweight"</code></td>
-            </tr>
-            <tr>
-              <td><code>"Diana", "Wilson", "5", "6", "186"</code></td>
-              <td><code>"Obese"</code></td>
-            </tr>
-          </tbody>
-        </table>
+        <td>3. Creation of Dictionary</td>
+        <td>Your code must store friends' names and hobbies in a dictionary data type. See the test cases section for examples.
         </td>
         <td>30</td>
     </tr>
     <tr>
-        <td>5. Sufficient Comments </td>
+        <td>4. Sufficient Comments </td>
         <td>Your code must include at least <code>5</code> comments. You can use <code>#</code>, <code>''' '''</code>, or <code>""" """</code></td>
         <td>10</td>
     </tr>
@@ -284,4 +217,28 @@ This assignment contains the automated tests listed below. The tests will ignore
         <td>100</td>
   </tr>
 </tbody>
+</table>
+
+## Test Cases
+Each of the below test cases will be run on the above tests. Your code should function properly when entering the provided inputs.
+
+<table border="1">
+    <thead>
+        <tr>
+            <th>Description</th>
+            <th>Input</th><th>Expected Output: dicts</th></tr>
+    </thead>
+    <tbody><tr>
+            <td>1. Single name/hobby, no lookup</td>
+            <td><code>"1", "Jimmer", "Basketball", "3"</code></td><td><code>{"Jimmer": "Basketball"}</code></td></tr><tr>
+            <td>2. Single name/hobby with lookup</td>
+            <td><code>"1", "Jimmer", "Basketball", "2", "Jimmer", "3"</code></td><td><code>{"Jimmer": "Basketball"}</code></td></tr><tr>
+            <td>3. Invalid input</td>
+            <td><code>"INVALID INPUT!", "4", "3"</code></td><td><code>{}</code> or <code>None</code></td></tr><tr>
+            <td>4. Single name/hobby, repeat name</td>
+            <td><code>"1", "Jimmer", "Basketball", "1", "Jimmer", "3"</code></td><td><code>{"Jimmer": "Basketball"}</code></td></tr><tr>
+            <td>5. Lookup before entering name/hobby</td>
+            <td><code>"2", "Jimmer", "3"</code></td><td><code>{}</code> or <code>None</code></td></tr><tr>
+            <td>6. Multiple friends/hobbies</td>
+            <td><code>"1", "Jimmer", "Basketball", "1", "Reena", "Listening to Sonic Youth", "1", "Link", "Breaking pots", "2", "Reena", "3"</code></td><td><code>{"Jimmer": "Basketball", "Reena": "Listening to Sonic Youth", "Link": "Breaking pots"}</code></td></tr></tbody>
 </table>
