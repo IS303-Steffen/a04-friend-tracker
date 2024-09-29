@@ -1,9 +1,8 @@
 # Stuff prof steffen added
-a4_solution_friend_tracker.py
-*Rubric*.xlsx
+*solution*.py
 ~$*.xlsx
-.vscode/*
-tests/student_test_module.py
+.vscode*
+student_test_module.py
 test_cases_table_output.html
 
 

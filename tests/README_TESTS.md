@@ -19,7 +19,8 @@ If you are student and found this, you might be looking for the README file, not
 - This repository needs to be a set as a public template in the GitHub settings after it has been pushed to GitHub.
 - GitHub Classroom uses GitHub Actions to run an autograding workflow every time a student pushes up their code. This is what will run the pytests.
 - GitHub Actions are reliant on a .yml configuration file located in .github/workflows. To automatically create this file based on the `test_*.py` files in the tests/ folder, just run the `yml_generator.py` script before pushing the repository to GitHub and referencing.
-    - Make sure you install ruamel.yaml for this to work `pip install ruamel.yaml`
+    - Make sure you install ruamel.yaml for this to work
+        - `pip install ruamel.yaml`
     - IMPORTANT: Do not create any tests in GitHub Classroom when making the assignment. If you do, it will overwrite the .yml configuration. It is far quicker to just run the script here and not worry about setting any tests up through their GUI.
     - The classroom.yml configuration currently created uses these GitHub actions after setting up an ubuntu machine and installing python:
         - [classroom-resources/autograding-command-grader@v1](https://github.com/classroom-resources/autograding-command-grader)
@@ -28,5 +29,9 @@ If you are student and found this, you might be looking for the README file, not
             - This collects the points from the autograding command grader (or other graders that GitHub provides) and then reports the points back to GitHub Classroom. It also displays them for the student if they go into the Actions section of their repository.
         - You could also use the python autograder [classroom-resources/autograding-python-grader@v1](https://github.com/classroom-resources/autograding-python-grader) but I moved away from this because it didn't allow specifying a specific version of python. 
 
-
+# Checklist For Submitting to GitHub
+1. Ensure all tests pass using the solution file
+2. Ensure .gitignore includes:
+    - the solution file
+    - student_test_module.py
 

@@ -154,7 +154,7 @@ Exiting the program. Goodbye!
 ## Rubric
 This assignment contains the automated tests listed below. The tests will ignore spacing, capitalization, and punctuation, but you will fail the tests if you spell something wrong or calculate something incorrectly.
 
-After this table, see the Test Cases table to see what inputs will be run for each of the tests below. To receive points for test, the test must pass each of the individual test cases.
+After this table, see the Test Cases table below to see what inputs will be run for each of the tests below. To receive points for a test, the test must pass each of the individual test cases.
 
 <table>
 <thead>
@@ -181,7 +181,7 @@ After this table, see the Test Cases table to see what inputs will be run for ea
           <li><code>Enter a friend's name to find their hobby: </code></li>
         </ul> 
         </td>
-        <td>15</td>
+        <td>25</td>
     </tr>
     <tr>
         <td>2. Printed Messages</td>
@@ -199,18 +199,24 @@ After this table, see the Test Cases table to see what inputs will be run for ea
             <li><code>Invalid choice. Please choose a valid option.</code></li>
           </ul>        
         </td>
-        <td>15</td>
+        <td>25</td>
     </tr>
     <tr>
         <td>3. Creation of Dictionary</td>
         <td>Your code must store friends' names and hobbies in a dictionary data type. See the test cases section for examples.
         </td>
-        <td>30</td>
+        <td>45</td>
     </tr>
     <tr>
         <td>4. Sufficient Comments </td>
-        <td>Your code must include at least <code>5</code> comments. You can use <code>#</code>, <code>''' '''</code>, or <code>""" """</code></td>
-        <td>10</td>
+        <td>Your code must include at least <code>5</code> comments. You can use any form of commenting:
+        <ul>
+          <li><code>#</code></li> 
+          <li><code>''' '''</code></li>
+          <li><code>""" """</code></li>
+        </ul>
+        </td>
+        <td>5</td>
     </tr>
     <tr>
         <td colspan="2">Total Points</td>
