@@ -14,7 +14,7 @@ import importlib
 import json
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
-default_module_to_test = "a4_solution_friend_tracker"
+default_module_to_test = "a4_friend_tracker"
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)
 

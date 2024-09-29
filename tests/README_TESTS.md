@@ -31,7 +31,25 @@ If you are student and found this, you might be looking for the README file, not
 
 # Checklist For Submitting to GitHub
 1. Ensure all tests pass using the solution file
-2. Ensure .gitignore includes:
-    - the solution file
+2. Change default_module_to_test in conftest.py to look at the student submission file instead of the solution file.
+3. Run the generate_yml.py
+4. Ensure .gitignore includes:
+    - \*solution\*.py
+    - ~$*.xlsx
+    - .vscode*
     - student_test_module.py
+    - test_cases_table_output.html
+5. Push all changes to GitHub
+6. In GitHub Classroom use the following settings:
+    - Private repository visibility
+    - Don't grant admin status
+    - Copy the default branch only
+    - Don't use an online IDE
+    - Use YAML (DO NOT ADD ANY GITHUB PRESET TESTS)
+    - Run Autograding every time a a student submits an assignment
+    - add the following as protected filepaths:
+        - github/**/*
+        - tests/\*test\*
+    - Enable feedback pull requests
+7. After publishing, use another GitHub account to ensure that the link to the assignment works and that when code is pushed the automated grading works.
 
