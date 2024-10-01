@@ -3,18 +3,19 @@ conftest.py is a configuration file automatically accessed by pytest
 any @pytest.fixture created here is available to any other test file
 if they reference it as a parameter.
 '''
-#hello there!!!
-import pytest
-import re
-import textwrap
-import sys
-import os
-import inspect
-import importlib
-import json
+
+import pytest, re, textwrap, sys, os, inspect, importlib, json, inspect, traceback, time, signal
+
+# ================
+# GLOBAL VARIABLES
+# ================
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
 default_module_to_test = "a4_friend_tracker"
+
+# default per-test-case timeout amount in seconds:
+default_timeout_seconds = 5
+
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)
 
@@ -79,11 +80,28 @@ def pytest_runtest_call(item):
     else:
         print(f"{test_name} has already been run in this session")
 
+# This is a keyword name of a function for pytest. It will run automatically when done with
+# a session of pytest
+def pytest_sessionfinish():
+    # Path to the file to check and delete
+    file_path = os.path.join('tests', 'student_test_module.py')
+
+    # Check if the file exists
+    if os.path.exists(file_path):
+        try:
+            # Delete the file
+            os.remove(file_path)
+            print(f"\nCreated flattened file {file_path} during testing, and successfully removed it when finished.")
+        except OSError as e:
+            print(f"\nError deleting {file_path}: {e}")
+
+
+
 # ================
 # HELPER FUNCTIONS
 # ================
     
-def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_test):
+def load_or_reload_module(mock_inputs, inputs, test_case = None, module_to_test=default_module_to_test):
     """
     Loads in student code with a monkeypatched input() function so that it can
     run without pausing the terminal.
@@ -98,29 +116,29 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
     student code uses input() or you want to check the values of global
     variables for tests.
     """
-    
-    # Define the path to the test module inside the tests/ directory
-    test_module_path = os.path.join(os.getcwd(), "tests", "student_test_module.py")
-    
-    # Ensure the tests/ directory is in sys.path for imports
-    if os.path.join(os.getcwd(), "tests") not in sys.path:
-        sys.path.append(os.path.join(os.getcwd(), "tests"))
-
-    # Check if the student_test_module.py already exists
-    # and that this is not the first pytest being run for this session.
-    if os.path.exists(test_module_path) and len(_run_tests) > 1:
-        print("student_test_module.py exists, loading it directly.")
-
-        captured_input_prompts = mock_inputs(inputs)
-        # If the file exists, import or reload the module directly
-        if 'student_test_module' in sys.modules:
-            dynamic_module = importlib.reload(sys.modules['student_test_module'])
-        else:
-            dynamic_module = importlib.import_module('student_test_module')
-
-        return captured_input_prompts, dynamic_module.__dict__
-
     try:
+        # Define the path to the test module inside the tests/ directory
+        test_module_path = os.path.join(os.getcwd(), "tests", "student_test_module.py")
+        
+        # Ensure the tests/ directory is in sys.path for imports
+        if os.path.join(os.getcwd(), "tests") not in sys.path:
+            sys.path.append(os.path.join(os.getcwd(), "tests"))
+
+        # Check if the student_test_module.py already exists
+        # and that this is not the first pytest being run for this session.
+        if os.path.exists(test_module_path) and len(_run_tests) > 1:
+            print("student_test_module.py exists, loading it directly.")
+
+            captured_input_prompts = mock_inputs(inputs)
+            # If the file exists, import or reload the module directly
+            if 'student_test_module' in sys.modules:
+                dynamic_module = importlib.reload(sys.modules['student_test_module'])
+            else:
+                dynamic_module = importlib.import_module('student_test_module')
+
+            return captured_input_prompts, dynamic_module.__dict__
+
+    
         captured_input_prompts = mock_inputs(inputs)
 
         # Step 1: Import or reload the module normally
@@ -167,7 +185,7 @@ def load_or_reload_module(mock_inputs, inputs, module_to_test=default_module_to_
         return captured_input_prompts, dynamic_module.__dict__
 
     except Exception as e:
-        pytest.fail(f"Error during testing: {e}")
+        exception_message_for_students(e, test_case)
 
 def flatten_main_code(code):
     """
@@ -325,50 +343,67 @@ def format_error_message(custom_message: str = None,
     # some starting strings. All messages will be appended to error_message
     error_message = ''
     divider = f"\n{"-"*line_length}\n"
+    error_message += divider
+    error_message += f"IS 303 STUDENTS: READ THE ERROR MESSAGES IN RED BELOW\n\n"
+    error_message += "↓"*line_length + "\n"
     if test_case:
-        test_case_description = f"Test Case {test_case["id_test_case"]}: \"{test_case["test_case_description"]}\"\n\n"
+        error_message += divider
+        error_message += f"TEST FAILED DURING TEST CASE: {test_case["id_test_case"]}"
+        error_message += divider
+        error_message += insert_newline_at_last_space((
+            f"\nLook at the \"Test Cases\" section of the instructions in README.md. "
+            f"Run your code while inputting the EXACT inputs shown there to see where/why "
+            f"your code either breaks or doesn't pass this test.\n\n"
+        ), line_length)
+        test_case_description = f"FOR TEST CASE: {test_case["id_test_case"]}"
     else:
         test_case_description = ''
 
     if custom_message:
         error_message += divider
-        error_message += f"ERROR DESCRIPTION:\n{test_case_description}"
-        error_message += insert_newline_at_last_space(custom_message, line_length)
-    
+        error_message += f"WHAT WENT WRONG:"
+        error_message += divider
+        error_message += insert_newline_at_last_space("\n" + custom_message, line_length)
+
     if display_inputs:
         inputs_concatenated = '\n'.join(test_case["inputs"])
         error_message += divider
-        error_message += (f"INPUTS:\n{test_case_description}"
-                          f"Enters these inputs in this order:\n\n")
-        error_message += inputs_concatenated
+        error_message += f"INPUTS ENTERED {test_case_description}"
+        error_message += divider
+        error_message += insert_newline_at_last_space(f"\nThese inputs will be entered in this exact order during this test case:\n\n\n", line_length)
+        error_message += inputs_concatenated + "\n"
 
     if display_input_prompts:
         expected_input_prompts_concatenated = '\n'.join(test_case["input_prompts"])
         error_message += divider
-        error_message += (f"EXPECTED INPUT PROMPTS:\n{test_case_description}"
-                          f"Expects these input prompts:\n\n")
-        error_message += expected_input_prompts_concatenated
+        error_message += f"EXPECTED INPUT PROMPTS {test_case_description}"
+        error_message += divider
+        error_message += insert_newline_at_last_space(f"\nThese inputs prompts must appear at least once during this test case:\n\n\n", line_length)
+        error_message += expected_input_prompts_concatenated + "\n"
 
     if display_invalid_input_prompts:
         invalid_input_prompts_concatenated = '\n'.join(test_case["invalid_input_prompts"])
         error_message += divider
-        error_message += (f"INVALID INPUT PROMPTS:\n{test_case_description}"
-                          f"Doesn't allow these invalid input prompts:\n\n")
-        error_message += invalid_input_prompts_concatenated
+        error_message += f"INVALID INPUT PROMPTS {test_case_description}"
+        error_message += divider
+        error_message += insert_newline_at_last_space(f"\nThe test will fail if any of the following appear during this test case:\n\n\n", line_length)
+        error_message += invalid_input_prompts_concatenated + "\n"
 
     if display_printed_messages:
         expected_printed_messages_concatenated = '\n'.join(test_case["printed_messages"])
         error_message += divider
-        error_message += (f"EXPECTED PRINTED MESSAGES:\n{test_case_description}"
-                          f"Expects these printed messages:\n\n")
-        error_message += expected_printed_messages_concatenated
+        error_message += f"EXPECTED PRINTED MESSAGES {test_case_description}"
+        error_message += divider               
+        error_message += insert_newline_at_last_space(f"\nThese printed messages must appear at least once during this test case:\n\n\n", line_length)
+        error_message += expected_printed_messages_concatenated + "\n"
 
     if display_invalid_printed_messages:
         invalid_printed_messages_concatenated = '\n'.join(test_case["invalid_printed_messages"])
         error_message += divider
-        error_message += (f"INVALID PRINTED MESSAGES:\n{test_case_description}"
-                          f"Doesn't allow these invalid printed messages:\n\n")
-        error_message += invalid_printed_messages_concatenated
+        error_message += f"INVALID PRINTED MESSAGES {test_case_description}"
+        error_message += divider
+        error_message += insert_newline_at_last_space(f"\nThe test will fail if any of the following appear during this test case:\n\n\n", line_length)
+        error_message += invalid_printed_messages_concatenated + "\n"
 
     error_message += "\n"
 
@@ -407,3 +442,55 @@ def insert_newline_at_last_space(s, width=74):
         lines.append(current_line.strip())
     
     return '\n'.join(lines)
+
+def exception_message_for_students(e: Exception, test_case):
+        tb_list = traceback.extract_tb(e.__traceback__)
+        last_traceback = [tb_list[-1]] # just get the last file where the error occurred.
+        error_location = ''.join(traceback.format_list(last_traceback))
+        
+        pattern = r'.*\/([^\/]+\.py)(.*)' # make it only grab the last part of the filename
+        error_location = re.sub(pattern, r'\1\2', error_location)
+        
+        error_message = f"\n{type(e).__name__}: {e}"
+
+        pytest.fail(f"{format_error_message(
+            custom_message=(f"While trying to run the test, python ran into an error.\n\n"
+                            f"LOCATION OF ERROR:\n\n{error_location}\n"
+                            f"ERROR MESSAGE:\n{error_message}\n\n"
+                            f"HOW TO FIX IT:\n\n"
+                            f"If the error occured in {default_module_to_test}.py, go to the location in that file where "
+                            f"the error occured and see if you can repeate the error using the inputs for Test Case {test_case["id_test_case"]}. "
+                            f"If the error occured in a different .py file, reach out to your professor.\n\n"), 
+            test_case=test_case,
+            display_inputs=True
+            )}")
+
+def timeout_message_for_students(test_case):
+    return format_error_message(
+                custom_message=(f"You got a Timeout Error, meaning this test case didn't complete after {default_timeout_seconds} seconds. "
+                                f"Check out the inputs for Test Case {test_case["id_test_case"]}. Most likely, "
+                                f"you wrote your code in a way that the inputs of this test case make it so your code never exits properly. "
+                                f"Double check the test case examples in the instructions and make sure your code isn't asking for additional "
+                                f"or fewer inputs than the test case expects.\n\n"),
+                test_case=test_case,
+                display_inputs=True,
+                display_input_prompts=True,
+                display_invalid_input_prompts=True)
+
+def timeout_counter(stop_event, pid, timeout_triggered, timeout_seconds = default_timeout_seconds):
+    for _ in range(timeout_seconds):
+        if stop_event.is_set(): # check every second if the test has finished
+            return
+        time.sleep(1)
+
+    # If the stop flag was not set within the timeout period, terminate the main process
+    print(f"Time's up! Exceeded {timeout_seconds} seconds. Sending termination signal to the main process.")
+
+    # set the multiprocess Value. Used when catching a keyboard interrupt exception to give a 
+    # better error message if it was caused by this timeout function.
+    timeout_triggered.value = 1 
+
+    # send a KeyboardInterrupt signal (CTRL + C) to whatever process id started this function.
+    os.kill(pid, signal.SIGINT)
+
+    

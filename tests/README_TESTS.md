@@ -14,6 +14,7 @@ If you are student and found this, you might be looking for the README file, not
 2. Run `capture_test_cases.py`. You will notice it will automatically start whatever solution file you reference in it. Run the solution code using specific test case prompts for a specific case you'd like the students' code to be able to handle
 3. When `capture_test_cases.py` finishes running, it outputs the inputs, input prompts, printed messages, and all variables captured during the run to a .json file called `test_cases_drafts.json`. It will ask you to give a description to the test case when you finish running through your solution script. Each additional test case run will append an additional test case to the .json file.
 4. When you are finished generating test cases, you should copy `test_cases_drafts.json` to `test_cases_final.json`, which is referenced by conftest.py in a fixture called `test_cases`. The `test_cases` fixture can be called by any pytest.
+5. Once the `test_cases_final.json` is set up, you can also run `generate_markdown_test_cases.py`, which helps generate tables for each test case for use in the `README.md` instructions. That saves hours of time writing instructions.
 
 # Setting Up Tests for GitHub Classroom
 - This repository needs to be a set as a public template in the GitHub settings after it has been pushed to GitHub.
@@ -39,6 +40,7 @@ If you are student and found this, you might be looking for the README file, not
     - .vscode*
     - student_test_module.py
     - test_cases_table_output.html
+    - test_cases_drafts.json
 5. Push all changes to GitHub
 6. In GitHub Classroom use the following settings:
     - Private repository visibility
