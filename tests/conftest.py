@@ -16,7 +16,7 @@ from io import StringIO
 default_module_to_test = "a4_friend_tracker"
 
 # default per-test-case timeout amount in seconds:
-default_timeout_seconds = 600
+default_timeout_seconds = 5
 
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)

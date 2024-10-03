@@ -33,6 +33,7 @@ If you are student and found this, you might be looking for the README file, not
 # Checklist For Submitting to GitHub
 1. Ensure all tests pass using the solution file
 2. Change default_module_to_test in conftest.py to look at the student submission file instead of the solution file.
+3. Ensure the timeout seconds in conftest.py is set to 5 seconds (or whatever you deem reasonable)
 3. Run the generate_yml.py
 4. Ensure .gitignore includes:
     - \*solution\*.py
