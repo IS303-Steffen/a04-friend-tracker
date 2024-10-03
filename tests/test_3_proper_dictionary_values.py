@@ -1,8 +1,5 @@
-# test_3_proper_dictionary_values.py
-
 max_score = 45  # This value is pulled by yml_generator.py to assign a score to this test.
 from conftest import normalize_text, load_or_reload_module, format_error_message, exception_message_for_students
-import pytest
 
 # Checks if a correct dictionary is created given certain inputs
 def test_3_proper_dictionary_values(test_cases):
@@ -76,17 +73,21 @@ def test_3_proper_dictionary_values(test_cases):
                         test_case=test_case,
                         display_inputs=True
                     )
-                # If match found, test passes
+            # assert raises an AssertionError, but I don't want to actually catch it
+            # this is just so I can have another Exception catch below it in case
+            # anything else goes wrong.
             except AssertionError:
-                # Re-raise AssertionErrors to let pytest handle them
                 raise
+            
             except Exception as e:
+                # Handle other exceptions
                 exception_message_for_students(e, test_case)
     
+    # the first AssertionError raises the problem here, this raises it to the main level so the test will stop
     except AssertionError:
         raise
 
     except Exception as outer_e:
-        # Handle problems with test_cases (e.g., invalid type or structure)
+        # Catches any problem in grabbing the test cases
         test_case = {"id_test_case": None}
-        exception_message_for_students(outer_e, test_case=test_case)  # Pass `None` since test_case is not valid
+        exception_message_for_students(outer_e, test_case=test_case) 
