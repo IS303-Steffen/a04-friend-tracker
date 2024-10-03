@@ -1,5 +1,5 @@
 max_score = 25  # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_or_reload_module, format_error_message, exception_message_for_students, timeout_message_for_students
+from conftest import normalize_text, load_student_code, format_error_message, exception_message_for_students, timeout_message_for_students
 import re
 
 # Checks if the expected printed messages actually appear, but doesn't check for specific inputs or correct calculations.
@@ -18,7 +18,7 @@ def test_2_printed_messages(test_cases):
                 invalid_printed_messages = test_case["invalid_printed_messages"]
 
                 # Load in the student's code and capture output
-                _, captured_output, _ = load_or_reload_module(inputs, test_case)
+                _, captured_output, _ = load_student_code(inputs, test_case)
 
                 # Split the captured output into lines
                 captured_lines = captured_output.splitlines()

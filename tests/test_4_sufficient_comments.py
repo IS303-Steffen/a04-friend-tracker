@@ -22,7 +22,7 @@ def test_4_sufficient_comments():
         # Count total number of comments
         num_comments = len(comments)
 
-        # Ensure there are at least 3 comments
+        # Ensure there are at least X comments
         assert num_comments >= required_num_comments,format_error_message(
         f"Not enough comments found. You need at least {required_num_comments}. "
         f"Only {num_comments} comment(s) detected.")

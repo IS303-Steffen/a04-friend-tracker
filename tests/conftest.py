@@ -13,7 +13,7 @@ from io import StringIO
 # ================
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
-default_module_to_test = "a4_solution_friend_tracker"
+default_module_to_test = "a4_friend_tracker"
 
 # default per-test-case timeout amount in seconds:
 default_timeout_seconds = 600
@@ -91,7 +91,7 @@ def is_picklable(obj):
     else:
         return True
 
-def load_or_reload_module(inputs, test_case=None, module_to_test=default_module_to_test):
+def load_student_code(inputs, test_case=None, module_to_test=default_module_to_test):
     """
     Loads the student's code in a subprocess with mocked inputs to prevent hanging the main test process.
     """
@@ -100,7 +100,7 @@ def load_or_reload_module(inputs, test_case=None, module_to_test=default_module_
         queue = multiprocessing.Queue()
 
         # Start the subprocess
-        p = multiprocessing.Process(target=_load_module_subprocess, args=(queue, inputs, test_case, module_to_test))
+        p = multiprocessing.Process(target=_load_student_code_subprocess, args=(queue, inputs, test_case, module_to_test))
         p.start()
 
         # Wait for the subprocess to finish, or continue if the timeout limit is reached
@@ -132,15 +132,16 @@ def load_or_reload_module(inputs, test_case=None, module_to_test=default_module_
         exception_message_for_students(e, test_case)
 
 
-def _load_module_subprocess(queue, inputs, test_case, module_to_test):
+def _load_student_code_subprocess(queue, inputs, test_case, module_to_test):
+    """
+    Called in load_student_code as a subprocess, which allows it to 
+    be terminated if the student's code hangs. Student code is run through
+    exec(). Before that, a mock input function is created to replace the
+    actual input function, StringIO captures printed messages, and if the
+    student has a "main" function, it also will capture local variables there
+    for any test that assumes the existence of global variables.
+    """
     try:
-        import sys
-
-        # Read the student's code from the file
-        module_file_path = module_to_test + '.py'
-        with open(module_file_path, 'r') as f:
-            code = f.read()
-        
         # Prepare the mocked input function and capture variables
         captured_input_prompts = []
         input_iter = iter(inputs)
@@ -187,6 +188,11 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
         old_stdout = sys.stdout
         sys.stdout = StringIO()
         
+        # Read the student's code from the file
+        module_file_path = module_to_test + '.py'
+        with open(module_file_path, 'r') as f:
+            code = f.read()
+
         # Execute the student's code within the controlled namespace
         exec(code, globals_dict)
 
@@ -208,6 +214,18 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
         # Send back the results
         queue.put(('success', (captured_input_prompts, captured_output, module_globals)))
         
+    except FileNotFoundError as e:
+        # Reset sys.stdout in case of exception
+        sys.stdout = old_stdout
+        sys.settrace(None)
+        # Send the exception back as a dictionary
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        exception_data = {
+            'type': type(e).__name__,
+            'message': str(e),
+            'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
+        }
+        queue.put(('exception', exception_data))
     except BaseException as e:
         # Reset sys.stdout in case of exception
         sys.stdout = old_stdout

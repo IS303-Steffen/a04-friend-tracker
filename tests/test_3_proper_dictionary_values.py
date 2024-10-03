@@ -1,5 +1,5 @@
 max_score = 45  # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_or_reload_module, format_error_message, exception_message_for_students
+from conftest import normalize_text, load_student_code, format_error_message, exception_message_for_students
 
 # Checks if a correct dictionary is created given certain inputs
 def test_3_proper_dictionary_values(test_cases):
@@ -29,7 +29,7 @@ def test_3_proper_dictionary_values(test_cases):
                 
 
                 # Load in the student's code and get globals
-                _, _, student_globals = load_or_reload_module(inputs, test_case)
+                _, _, student_globals = load_student_code(inputs, test_case)
                 
                 # Get the locals from 'main' function
                 student_locals = student_globals.get('__main_locals__', {})

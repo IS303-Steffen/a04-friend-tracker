@@ -1,5 +1,5 @@
 max_score = 25  # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_or_reload_module, format_error_message, exception_message_for_students
+from conftest import normalize_text, load_student_code, format_error_message, exception_message_for_students
 import re
 
 # Checks if the input prompts (from using input()) contain the expected prompts.
@@ -18,7 +18,7 @@ def test_1_input_prompts(test_cases):
                 invalid_input_prompts = test_case["invalid_input_prompts"]
 
                 # Load in the student's code using the updated function
-                captured_input_prompts, _, _ = load_or_reload_module(inputs, test_case)
+                captured_input_prompts, _, _ = load_student_code(inputs, test_case)
 
                 # Normalize the captured input prompts to remove spaces, punctuation, and symbols
                 normalized_captured_input_prompts = [normalize_text(captured_prompt) for captured_prompt in captured_input_prompts]
