@@ -5,6 +5,8 @@ if they reference it as a parameter.
 '''
 
 import pytest, re, textwrap, sys, os, inspect, importlib, json, inspect, traceback, time, signal
+import builtins, multiprocessing, pickle
+from io import StringIO
 
 # ================
 # GLOBAL VARIABLES
@@ -33,33 +35,6 @@ def test_cases():
         test_cases = json.load(f)
     
     return test_cases
-
-@pytest.fixture
-def mock_inputs(monkeypatch):
-    """
-    this replaces the built in input() function using monkeypatch. Can be called by any test.
-    Must to be called for any assignment that uses the input() function, as that will cause
-    any test to crash.
-    """
-    # Create a function to set inputs. Pytest doesn't let you pass arguments
-    # into fixtures, so this is just a workaround to allow for passing in the inputs.
-    def _mock_inputs(simulated_inputs):
-        input_iter = iter(simulated_inputs)
-        captured_input_prompts = []
-
-        # Define the mock input function
-        def mock_input(prompt=''):
-            if prompt != '':
-                captured_input_prompts.append(prompt)
-                return next(input_iter, '') # grabs the next input, or a blank string if empty
-            return ''
-
-        # Use monkeypatch to replace the built-in input() with the mock input function
-        monkeypatch.setattr('builtins.input', mock_input)
-
-        return captured_input_prompts
-
-    return _mock_inputs
 
 
 # =====
@@ -100,92 +75,163 @@ def pytest_sessionfinish():
 # ================
 # HELPER FUNCTIONS
 # ================
-    
-def load_or_reload_module(mock_inputs, inputs, test_case = None, module_to_test=default_module_to_test):
-    """
-    Loads in student code with a monkeypatched input() function so that it can
-    run without pausing the terminal.
 
-    If students turn in code with variations of "if __name__ == '__main__'
-    logic, it will generate an altered version of their code 
-    in the "student_test_module.py" file with their main
-    logic "flattened" to the global level so that this function can still 
-    access their variables as if they were global.
-    
-    This function is needed any time
-    student code uses input() or you want to check the values of global
-    variables for tests.
+def is_picklable(obj):
+    try:
+        pickle.dumps(obj)
+    except Exception:
+        return False
+    else:
+        return True
+
+def load_or_reload_module(inputs, test_case=None, module_to_test=default_module_to_test):
+    """
+    Loads the student's code in a subprocess with mocked inputs to prevent hanging the main test process.
     """
     try:
+        # Create a queue to communicate with the subprocess
+        queue = multiprocessing.Queue()
+
+        # Set the timeout (in seconds)
+        timeout_seconds = default_timeout_seconds
+
+        # Start the subprocess
+        p = multiprocessing.Process(target=_load_module_subprocess, args=(queue, inputs, test_case, module_to_test))
+        p.start()
+
+        # Wait for the subprocess to finish or timeout
+        p.join(timeout_seconds)
+
+        if p.is_alive():
+            # Subprocess is still running; terminate it
+            p.terminate()
+            p.join()
+            # Handle timeout
+            pytest.fail(timeout_message_for_students(test_case))
+        else:
+            # Subprocess finished; get the result
+            if not queue.empty():
+                status, payload = queue.get()
+                if status == 'success':
+                    # get input prompts, printed messages and all other variables from the queue
+                    captured_input_prompts, captured_output, module_globals = payload
+                    return captured_input_prompts, captured_output, module_globals
+                elif status == 'exception':
+                    exception_data = payload  # Exception data dictionary
+                    exception_message_for_students(exception_data, test_case)
+                else:
+                    pytest.fail("Unexpected status from subprocess.")
+            else:
+                pytest.fail("Subprocess finished without returning any data.")
+    except Exception as e:
+        exception_message_for_students(e, test_case)
+
+
+def _load_module_subprocess(queue, inputs, test_case, module_to_test):
+    try:
+        # Mock input function in the subprocess
+        captured_input_prompts = []
+
+        def mock_input(prompt=''):
+            if prompt != '':
+                captured_input_prompts.append(prompt)
+            return next(input_iter, '')
+
+        input_iter = iter(inputs)
+        builtins.input = mock_input
+
+        # Capture printed output by redirecting sys.stdout
+        old_stdout = sys.stdout
+        sys.stdout = StringIO()
+
+        # Initialize main_body to None to avoid UnboundLocalError
+        main_body = None  # <-- Add this line
+
+        # Proceed with the original logic
         # Define the path to the test module inside the tests/ directory
         test_module_path = os.path.join(os.getcwd(), "tests", "student_test_module.py")
-        
+
         # Ensure the tests/ directory is in sys.path for imports
-        if os.path.join(os.getcwd(), "tests") not in sys.path:
-            sys.path.append(os.path.join(os.getcwd(), "tests"))
+        tests_dir = os.path.join(os.getcwd(), "tests")
+        if tests_dir not in sys.path:
+            sys.path.insert(0, tests_dir)
 
         # Check if the student_test_module.py already exists
-        # and that this is not the first pytest being run for this session.
-        if os.path.exists(test_module_path) and len(_run_tests) > 1:
-            print("student_test_module.py exists, loading it directly.")
-
-            captured_input_prompts = mock_inputs(inputs)
+        if os.path.exists(test_module_path):
             # If the file exists, import or reload the module directly
             if 'student_test_module' in sys.modules:
                 dynamic_module = importlib.reload(sys.modules['student_test_module'])
             else:
                 dynamic_module = importlib.import_module('student_test_module')
-
-            return captured_input_prompts, dynamic_module.__dict__
-
-    
-        captured_input_prompts = mock_inputs(inputs)
-
-        # Step 1: Import or reload the module normally
-        if module_to_test in sys.modules:
-            module = sys.modules[module_to_test]
-            module = importlib.reload(module)
         else:
-            module = importlib.import_module(module_to_test)
+            # Import or reload the module normally
+            if module_to_test in sys.modules:
+                module = sys.modules[module_to_test]
+                module = importlib.reload(module)
+            else:
+                module = importlib.import_module(module_to_test)
 
-        module_source = inspect.getsource(module)
+            module_source = inspect.getsource(module)
 
-        # Step 2: Handle flattening cases if required
-        main_body = None
-        main_func_name = None
-        if hasattr(module, 'main'):
-            main_func_name = 'main'
-        elif hasattr(module, 'Main'):
-            main_func_name = 'Main'
+            # Handle flattening cases if required
+            main_func_name = None
+            if hasattr(module, 'main'):
+                main_func_name = 'main'
+            elif hasattr(module, 'Main'):
+                main_func_name = 'Main'
 
-        if main_func_name:
-            print(f"Handling case 3: Flattening {main_func_name}() function.")
-            main_body = flatten_main_code(module_source)
-        elif re.search(r'^[^#]*if\s+__name__\s*==\s*[\'"]__main__[\'"]\s*:', module_source, re.MULTILINE):
-            print("Handling case 2: Flattening if __name__ == '__main__' block.")
-            main_body = flatten_main_code(module_source)
-        else:
-            return captured_input_prompts, module.__dict__
+            if main_func_name:
+                print(f"Handling case: Flattening {main_func_name}() function.")
+                main_body = flatten_main_code(module_source)
+            elif re.search(r'^[^#]*if\s+__name__\s*==\s*[\'\"]__main__[\'\"]\s*:', module_source, re.MULTILINE):
+                print("Handling case: Flattening if __name__ == '__main__' block.")
+                main_body = flatten_main_code(module_source)
+            else:
+                # No flattening needed
+                dynamic_module = module
 
-        # Step 3: Write the flattened code to a fixed Python file in the tests/ directory
-        os.makedirs(os.path.dirname(test_module_path), exist_ok=True)
-        with open(test_module_path, 'w') as test_module_file:
-            test_module_file.write(f"# Dynamically generated module for testing\n{main_body}")
+        if main_body:
+            # Write the flattened code to a fixed Python file in the tests/ directory
+            os.makedirs(os.path.dirname(test_module_path), exist_ok=True)
+            with open(test_module_path, 'w') as test_module_file:
+                test_module_file.write(f"# Dynamically generated module for testing\n{main_body}")
 
-        # Step 4: Apply the monkeypatch to the dynamically imported module
-        captured_input_prompts = mock_inputs(inputs)
+            # Import or reload the newly created student_test_module from tests/
+            if 'student_test_module' in sys.modules:
+                dynamic_module = importlib.reload(sys.modules['student_test_module'])
+            else:
+                dynamic_module = importlib.import_module('student_test_module')
 
-        # Step 5: Import or reload the newly created student_test_module from tests/
-        if 'student_test_module' in sys.modules:
-            dynamic_module = importlib.reload(sys.modules['student_test_module'])
-        else:
-            dynamic_module = importlib.import_module('student_test_module')
+        # If main_body is None, dynamic_module should already be defined
+        if not main_body:
+            # Ensure that dynamic_module is assigned
+            if 'dynamic_module' not in locals():
+                dynamic_module = module  # Assign module to dynamic_module
 
-        # Step 6: Return the captured input prompts and globals from the dynamic module
-        return captured_input_prompts, dynamic_module.__dict__
+        # Filter module.__dict__ to include only picklable items
+        module_globals = {k: v for k, v in dynamic_module.__dict__.items() if is_picklable(v)}
+
+        # After running the student's code, get the printed output
+        captured_output = sys.stdout.getvalue()
+
+        # Reset sys.stdout
+        sys.stdout = old_stdout
+
+        # Send back the results
+        queue.put(('success', (captured_input_prompts, captured_output, module_globals)))
 
     except Exception as e:
-        exception_message_for_students(e, test_case)
+        # Reset sys.stdout in case of exception
+        sys.stdout = old_stdout
+        # Send the exception back as a dictionary
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        exception_data = {
+            'type': type(e).__name__,
+            'message': str(e),
+            'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
+        }
+        queue.put(('exception', exception_data))
+
 
 def flatten_main_code(code):
     """
@@ -443,27 +489,56 @@ def insert_newline_at_last_space(s, width=74):
     
     return '\n'.join(lines)
 
-def exception_message_for_students(e: Exception, test_case):
-        tb_list = traceback.extract_tb(e.__traceback__)
-        last_traceback = [tb_list[-1]] # just get the last file where the error occurred.
-        error_location = ''.join(traceback.format_list(last_traceback))
-        
-        pattern = r'.*\/([^\/]+\.py)(.*)' # make it only grab the last part of the filename
-        error_location = re.sub(pattern, r'\1\2', error_location)
-        
-        error_message = f"\n{type(e).__name__}: {e}"
+def exception_message_for_students(exception_data, test_case):
+    import traceback
+    import re
 
-        pytest.fail(f"{format_error_message(
-            custom_message=(f"While trying to run the test, python ran into an error.\n\n"
-                            f"LOCATION OF ERROR:\n\n{error_location}\n"
-                            f"ERROR MESSAGE:\n{error_message}\n\n"
-                            f"HOW TO FIX IT:\n\n"
-                            f"If the error occured in {default_module_to_test}.py, go to the location in that file where "
-                            f"the error occured and see if you can repeate the error using the inputs for Test Case {test_case["id_test_case"]}. "
-                            f"If the error occured in a different .py file, reach out to your professor.\n\n"), 
-            test_case=test_case,
-            display_inputs=True
-            )}")
+    if isinstance(exception_data, dict):
+        # Exception data from the subprocess
+        error_type = exception_data['type']
+        error_message_str = exception_data['message']
+        traceback_list = exception_data['traceback']
+        # Attempt to get the last traceback entry for the error location
+        if traceback_list:
+            error_location = ''.join(traceback_list[-2:]) if len(traceback_list) >= 2 else ''.join(traceback_list)
+        else:
+            error_location = "No traceback available."
+    else:
+        # Exception object with traceback
+        e = exception_data
+        tb_list = traceback.extract_tb(e.__traceback__)
+        if tb_list:
+            last_traceback = [tb_list[-1]]
+            error_location = ''.join(traceback.format_list(last_traceback))
+        else:
+            error_location = "No traceback available."
+        error_type = type(e).__name__
+        error_message_str = str(e)
+
+    # Apply pattern to error_location to extract just the last part of the filename
+    pattern = r'.*\/([^\/]+\.py)(.*)'  # Make it only grab the last part of the filename
+    error_location = re.sub(pattern, r'\1\2', error_location)
+
+    error_message = f"\n{error_type}: {error_message_str}"
+
+    # Check if 'inputs' is in test_case and set display_inputs_option accordingly
+    if test_case.get("inputs", None):
+        display_inputs_option = True
+    else:
+        display_inputs_option = False
+
+    # Call pytest.fail with the formatted error message
+    pytest.fail(f"{format_error_message(
+        custom_message=(f"While trying to run the test, python ran into an error.\n\n"
+                        f"LOCATION OF ERROR:\n\n{error_location}\n"
+                        f"ERROR MESSAGE:\n{error_message}\n\n"
+                        f"HOW TO FIX IT:\n\n"
+                        f"If the error occurred in {default_module_to_test}.py, go to the location in that file where "
+                        f"the error occurred and see if you can repeat the error using the inputs for Test Case {test_case['id_test_case']}. "
+                        f"If the error occurred in a different .py file, reach out to your professor.\n\n"), 
+        test_case=test_case,
+        display_inputs=display_inputs_option
+        )}")
 
 def timeout_message_for_students(test_case):
     return format_error_message(

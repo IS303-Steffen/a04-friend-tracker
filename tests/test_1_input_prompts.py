@@ -1,36 +1,25 @@
 max_score = 25  # This value is pulled by yml_generator.py to assign a score to this test.
-from conftest import normalize_text, load_or_reload_module, format_error_message, exception_message_for_students, timeout_counter, timeout_message_for_students
-from conftest import default_timeout_seconds
-import re, multiprocessing, pytest, os
+from conftest import normalize_text, load_or_reload_module, format_error_message, exception_message_for_students, timeout_message_for_students
+import re
+import pytest
 
-# checks if the input prompts (from using input()) contain the expected prompts.
-def test_1_input_prompts(mock_inputs, test_cases):
+# Checks if the input prompts (from using input()) contain the expected prompts.
+def test_1_input_prompts(test_cases):
     try:
-        # creates a boolean that can be passed around different processes
-        # used in the KeyboardInterrupt Exception, since that is the error I trigger if a timeout occurs
-        timeout_triggered = multiprocessing.Value('b', 0)
-
         # Ensure test_cases is valid and iterable
         if not isinstance(test_cases, list):
             raise ValueError("test_cases should be a list of dictionaries. Contact your professor.")
 
         # Loop through each test case
         for test_case in test_cases:
-            main_pid = os.getpid() # Grab the process id, in case the main process needs to be shutdown during timeout
-            stop_counting_event = multiprocessing.Event()
-
-            # create the process for running a counter
-            timeout_counter_thread = multiprocessing.Process(target=timeout_counter, args=(stop_counting_event, main_pid, timeout_triggered))
-            timeout_counter_thread.start()
-            
             try:
-                # grab the necessary data from the test case dictionary
+                # Grab the necessary data from the test case dictionary
                 inputs = test_case["inputs"]
                 expected_input_prompts = test_case["input_prompts"]
                 invalid_input_prompts = test_case["invalid_input_prompts"]
 
-                # Load in the student's code
-                captured_input_prompts, _ = load_or_reload_module(mock_inputs, inputs, test_case)
+                # Load in the student's code using the updated function
+                captured_input_prompts, _, _ = load_or_reload_module(inputs, test_case)
 
                 # Normalize the captured input prompts to remove spaces, punctuation, and symbols
                 normalized_captured_input_prompts = [normalize_text(captured_prompt) for captured_prompt in captured_input_prompts]
@@ -70,25 +59,13 @@ def test_1_input_prompts(mock_inputs, test_cases):
                         display_input_prompts=True,
                         display_invalid_input_prompts=True
                     )
-            except KeyboardInterrupt:
-                # Check if the timeout flag was set
-                if timeout_triggered.value == 1:
-                    print("Process interrupted due to timeout.")
-                    pytest.fail(
-                        timeout_message_for_students(test_case))
-                    
-                else:
-                    print("Process interrupted by user (Ctrl+C).")
-
+            except AssertionError:
+                raise
             except Exception as e:
+                # Handle other exceptions
                 exception_message_for_students(e, test_case)
-
-            finally:
-                # Ensure the counter process is stopped properly
-                if timeout_counter_thread.is_alive():
-                    stop_counting_event.set()  # Signal the counter thread to stop
-                    timeout_counter_thread.join()  # Wait for the thread to finish
-
+    except AssertionError:
+        raise
 
     except Exception as outer_e:
         # Handle problems with test_cases (e.g., invalid type or structure)
