@@ -13,10 +13,10 @@ from io import StringIO
 # ================
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
-default_module_to_test = "a4_friend_tracker"
+default_module_to_test = "a4_solution_friend_tracker"
 
 # default per-test-case timeout amount in seconds:
-default_timeout_seconds = 5
+default_timeout_seconds = 600
 
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)
@@ -134,7 +134,9 @@ def load_or_reload_module(inputs, test_case=None, module_to_test=default_module_
 
 def _load_module_subprocess(queue, inputs, test_case, module_to_test):
     try:
-        # Read the student's code from the file, and just put it all into a string.
+        import sys
+
+        # Read the student's code from the file
         module_file_path = module_to_test + '.py'
         with open(module_file_path, 'r') as f:
             code = f.read()
@@ -157,6 +159,29 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
             '__name__': '__main__',  # Ensures that the if __name__ == '__main__' block runs
             'input': mock_input,     # Overrides input() in the student's code
         }
+
+        # Prepare to capture 'main' function's locals
+        main_locals = {}
+
+        # this creates a way for tracking any variables created in a "main" function
+        # if they write their code that way instead of having everything at the global level.
+        def trace_calls(frame, event, arg):
+            if event != 'call':
+                return
+            code = frame.f_code
+            func_name = code.co_name
+            if func_name == 'main':
+                # We are entering the 'main' function
+                def trace_lines(frame, event, arg):
+                    if event == 'return':
+                        # We are exiting 'main', capture locals
+                        main_locals.update(frame.f_locals)
+                    return trace_lines
+                return trace_lines
+            return
+
+        # Set the trace function
+        sys.settrace(trace_calls)
         
         # Redirect sys.stdout to capture print statements
         old_stdout = sys.stdout
@@ -164,6 +189,9 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
         
         # Execute the student's code within the controlled namespace
         exec(code, globals_dict)
+
+        # Remove the trace function
+        sys.settrace(None)
         
         # Capture the output printed by the student's code
         captured_output = sys.stdout.getvalue()
@@ -173,6 +201,9 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
         
         # Collect global variables from the student's code
         module_globals = {k: v for k, v in globals_dict.items() if is_picklable(v)}
+
+        # Add main_locals to module_globals under a special key
+        module_globals['__main_locals__'] = main_locals
         
         # Send back the results
         queue.put(('success', (captured_input_prompts, captured_output, module_globals)))
@@ -180,6 +211,7 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
     except BaseException as e:
         # Reset sys.stdout in case of exception
         sys.stdout = old_stdout
+        sys.settrace(None)
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
         exception_data = {
@@ -188,6 +220,7 @@ def _load_module_subprocess(queue, inputs, test_case, module_to_test):
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
         queue.put(('exception', exception_data))
+
 
 
 def normalize_text(text):
