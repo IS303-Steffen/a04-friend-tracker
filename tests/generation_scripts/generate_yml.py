@@ -38,7 +38,7 @@ def generate_classroom_yml(python_version='3.12.6'):
     # Add install dependencies step
     job['steps'].append({
         'name': 'Install dependencies',
-        'run': 'python -m pip install --upgrade pip && pip install pandas openpyxl pytest pytest-subtests \'black<=22.3.0\' \'tomli>=1.1.0\' \'timeout-decorator~=0.5.0\''
+        'run': 'python -m pip install --upgrade pip && pip install pytest pytest-subtests \'black<=22.3.0\' \'tomli>=1.1.0\' \'timeout-decorator~=0.5.0\''
     })
 
     # Add test steps dynamically based on the test_*.py files in the tests/ folder
@@ -65,7 +65,7 @@ def generate_classroom_yml(python_version='3.12.6'):
                 'test-name': f'{test_name}',
                 'setup-command': '',
                 'command': f'python -m pytest -v tests/{test_file}',
-                'timeout': 10,
+                'timeout': 30,
                 'max-score': max_score
             }
         })
@@ -103,9 +103,13 @@ def get_max_score_from_test(file_path):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name) and target.id == 'max_score':
-                        return node.value.n  # Extract and return max_score value
+                        # Check if the value is a constant (Python 3.8+ uses ast.Constant for literals)
+                        if isinstance(node.value, ast.Constant):
+                            return node.value.value  # Use the 'value' attribute of ast.Constant
+                        elif isinstance(node.value, ast.Num):  # For compatibility with older Python versions
+                            return node.value.n  # Extract and return max_score value
     return 10  # Default max score if not specified
 
 if __name__ == '__main__':
     # Call the function with a default or custom Python version
-    generate_classroom_yml('3.12.6')
+    generate_classroom_yml()

@@ -4,7 +4,7 @@
 .vscode*
 student_test_module.py
 test_cases_table_output.html
-test_cases_drafts.json
+input_test_cases_drafts.json
 markdown_generated.md
 
 # Byte-compiled / optimized / DLL files

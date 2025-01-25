@@ -6,15 +6,15 @@ If you are student and found this, you might be looking for the README file, not
     - `pip install pytest`
 - Each test is contained in the tests folder and will automatically be discovered by pytest as long as it begins with `test` as a prefix.
 - Any fixtures (special pytest functions that are reset each time they are referenced) contained in `conftest.py` are automatically discovered by pytest and made available as function parameters in each of the test files.
-- Individual test cases are pulled in from the `test_cases_final.json` file.
+- Individual test cases are pulled in from the `test_cases/test_cases_final.json` file.
 
 # Generating Test Cases
-> Rather than manually typing out individual test cases, you can use `capture_test_cases.py` to generate test case data for you based on a working solution that you provide it.
-1.  Update `capture_test_cases.py` with the filename of solution file for the assignment
-2. Run `capture_test_cases.py`. You will notice it will automatically start whatever solution file you reference in it. Run the solution code using specific test case prompts for a specific case you'd like the students' code to be able to handle
-3. When `capture_test_cases.py` finishes running, it outputs the inputs, input prompts, printed messages, and all variables captured during the run to a .json file called `test_cases_drafts.json`. It will ask you to give a description to the test case when you finish running through your solution script. Each additional test case run will append an additional test case to the .json file.
-4. When you are finished generating test cases, you should copy `test_cases_drafts.json` to `test_cases_final.json`, which is referenced by conftest.py in a fixture called `test_cases`. The `test_cases` fixture can be called by any pytest.
-5. Once the `test_cases_final.json` is set up, you can also run `generate_markdown_test_cases.py`, which helps generate tables for each test case for use in the `README.md` instructions. That saves hours of time writing instructions.
+> Rather than manually typing out individual test cases, you can use `generate_input_test_cases.py` to generate test case data for you based on a working solution that you provide it.
+1.  Update `generate_input_test_cases.py` with the filename of solution file for the assignment
+2. Run `generate_input_test_cases.py`. You will notice it will automatically start whatever solution file you reference in it. Run the solution code using specific test case prompts for a specific case you'd like the students' code to be able to handle
+3. When `generate_input_test_cases.py` finishes running, it outputs the inputs, input prompts, printed messages, and all variables captured during the run to a .json file called `test_cases/test_cases_drafts.json`. It will ask you to give a description to the test case when you finish running through your solution script. Each additional test case run will append an additional test case to the .json file.
+4. When you are finished generating test cases, you should copy `test_cases/test_cases_drafts.json` to `test_cases/test_cases_final.json`, which is referenced by conftest.py in a fixture called `input_test_cases`. The `input_test_cases` fixture can be called by any pytest.
+5. Once the ``test_cases/test_cases_final.json`` is set up, you can also run `generate_markdown_test_cases.py`, which helps generate tables for each test case for use in the `README.md` instructions. That saves hours of time writing instructions.
 
 # Setting Up Tests for GitHub Classroom
 - This repository needs to be a set as a public template in the GitHub settings after it has been pushed to GitHub.
@@ -32,18 +32,20 @@ If you are student and found this, you might be looking for the README file, not
 
 # Checklist For Submitting to GitHub
 1. Ensure all tests pass using the solution file
-2. Change default_module_to_test in conftest.py to look at the student submission file instead of the solution file.
-3. Ensure the timeout seconds in conftest.py is set to 5 seconds (or whatever you deem reasonable)
-3. Run the generate_yml.py
-4. Ensure .gitignore includes:
+2. In conftest.py:
+    1. default_module_to_test in conftest.py has the proper file name for the student file name
+    2. The timeout time is set to 6 seconds
+3. Ensure each of the test files has the correct max_score set at the top of the file, and that it matches the README.md.
+4. Run the generate_yml.py
+5. Ensure .gitignore includes:
     - \*solution\*.py
     - ~$*.xlsx
     - .vscode*
     - student_test_module.py
     - test_cases_table_output.html
     - test_cases_drafts.json
-5. Push all changes to GitHub
-6. In GitHub Classroom use the following settings:
+6. Push all changes to GitHub
+7. In GitHub Classroom use the following settings:
     - Private repository visibility
     - Don't grant admin status
     - Copy the default branch only
@@ -54,5 +56,5 @@ If you are student and found this, you might be looking for the README file, not
         - github/**/*
         - tests/\*test\*
     - Enable feedback pull requests
-7. After publishing, use another GitHub account to ensure that the link to the assignment works and that when code is pushed the automated grading works.
+8. After publishing, use another GitHub account to ensure that the link to the assignment works and that when code is pushed the automated grading works.
 

@@ -1,7 +1,7 @@
 [
     {
-        "id_test_case": 1,
-        "test_case_description": "Single name/hobby, no lookup",
+        "id_input_test_case": 1,
+        "input_test_case_description": "Entering a single name/hobby and exiting",
         "inputs": [
             "1",
             "Jimmer",
@@ -22,18 +22,19 @@
             "\nExiting the program. Goodbye!"
         ],
         "invalid_input_prompts": [
+            "Enter Link's hobby: ",
             "Enter a friend's name to find their hobby: ",
-            "Enter Reena's hobby: ",
-            "Enter Link's hobby: "
+            "Enter Reena's hobby: "
         ],
         "invalid_printed_messages": [
             "\nJimmer's hobby is Basketball.",
+            "\nLink's hobby is Breaking pots.",
+            "\nLink added to your dictionary!",
             "\nJimmer is not in the dictionary.",
-            "\nReena added to your dictionary!",
             "\nJimmer is already in your dictionary.",
             "\nReena's hobby is Listening to Sonic Youth.",
             "\nInvalid choice. Please choose a valid option.",
-            "\nLink added to your dictionary!"
+            "\nReena added to your dictionary!"
         ],
         "bools": {
             "continue_prompting": false
@@ -54,8 +55,8 @@
         "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Jimmer\nEnter Jimmer's hobby: Basketball\n\nJimmer added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
     },
     {
-        "id_test_case": 2,
-        "test_case_description": "Single name/hobby with lookup",
+        "id_input_test_case": 2,
+        "input_test_case_description": "Entering a single name/hobby then looking that friend up",
         "inputs": [
             "1",
             "Jimmer",
@@ -80,16 +81,17 @@
             "\nExiting the program. Goodbye!"
         ],
         "invalid_input_prompts": [
-            "Enter Reena's hobby: ",
-            "Enter Link's hobby: "
+            "Enter Link's hobby: ",
+            "Enter Reena's hobby: "
         ],
         "invalid_printed_messages": [
-            "\nJimmer is already in your dictionary.",
+            "\nLink's hobby is Breaking pots.",
+            "\nLink added to your dictionary!",
             "\nJimmer is not in the dictionary.",
-            "\nReena added to your dictionary!",
+            "\nJimmer is already in your dictionary.",
             "\nReena's hobby is Listening to Sonic Youth.",
             "\nInvalid choice. Please choose a valid option.",
-            "\nLink added to your dictionary!"
+            "\nReena added to your dictionary!"
         ],
         "bools": {
             "continue_prompting": false
@@ -110,10 +112,10 @@
         "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Jimmer\nEnter Jimmer's hobby: Basketball\n\nJimmer added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 2\nEnter a friend's name to find their hobby: Jimmer\n\nJimmer's hobby is Basketball.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
     },
     {
-        "id_test_case": 3,
-        "test_case_description": "Invalid input",
+        "id_input_test_case": 3,
+        "input_test_case_description": "Entering invalid input strings and then exiting.",
         "inputs": [
-            "INVALID INPUT!",
+            "example of invalid input",
             "4",
             "3"
         ],
@@ -129,20 +131,21 @@
             "\nExiting the program. Goodbye!"
         ],
         "invalid_input_prompts": [
-            "Enter a friend's name to find their hobby: ",
             "Enter Jimmer's hobby: ",
-            "Enter friend's name: ",
             "Enter Reena's hobby: ",
-            "Enter Link's hobby: "
+            "Enter Link's hobby: ",
+            "Enter a friend's name to find their hobby: ",
+            "Enter friend's name: "
         ],
         "invalid_printed_messages": [
-            "\nJimmer's hobby is Basketball.",
+            "\nLink's hobby is Breaking pots.",
+            "\nLink added to your dictionary!",
+            "\nJimmer added to your dictionary!",
             "\nJimmer is not in the dictionary.",
-            "\nReena added to your dictionary!",
             "\nJimmer is already in your dictionary.",
             "\nReena's hobby is Listening to Sonic Youth.",
-            "\nJimmer added to your dictionary!",
-            "\nLink added to your dictionary!"
+            "\nJimmer's hobby is Basketball.",
+            "\nReena added to your dictionary!"
         ],
         "bools": {
             "continue_prompting": false
@@ -156,11 +159,11 @@
         "dicts": {
             "friends_hobbies": {}
         },
-        "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): INVALID INPUT!\n\nInvalid choice. Please choose a valid option.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 4\n\nInvalid choice. Please choose a valid option.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
+        "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): example of invalid input\n\nInvalid choice. Please choose a valid option.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 4\n\nInvalid choice. Please choose a valid option.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
     },
     {
-        "id_test_case": 4,
-        "test_case_description": "Single name/hobby, repeat name",
+        "id_input_test_case": 4,
+        "input_test_case_description": "Entering a name/hobby, then entering the same name to see if it prevents entering twice",
         "inputs": [
             "1",
             "Jimmer",
@@ -184,17 +187,18 @@
             "\nExiting the program. Goodbye!"
         ],
         "invalid_input_prompts": [
+            "Enter Link's hobby: ",
             "Enter a friend's name to find their hobby: ",
-            "Enter Reena's hobby: ",
-            "Enter Link's hobby: "
+            "Enter Reena's hobby: "
         ],
         "invalid_printed_messages": [
             "\nJimmer's hobby is Basketball.",
+            "\nLink's hobby is Breaking pots.",
+            "\nLink added to your dictionary!",
             "\nJimmer is not in the dictionary.",
-            "\nReena added to your dictionary!",
             "\nReena's hobby is Listening to Sonic Youth.",
             "\nInvalid choice. Please choose a valid option.",
-            "\nLink added to your dictionary!"
+            "\nReena added to your dictionary!"
         ],
         "bools": {
             "continue_prompting": false
@@ -215,8 +219,8 @@
         "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Jimmer\nEnter Jimmer's hobby: Basketball\n\nJimmer added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Jimmer\n\nJimmer is already in your dictionary.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
     },
     {
-        "id_test_case": 5,
-        "test_case_description": "Lookup before entering name/hobby",
+        "id_input_test_case": 5,
+        "input_test_case_description": "Looking up a name that doesn't exist before entering any names.",
         "inputs": [
             "2",
             "Jimmer",
@@ -235,19 +239,20 @@
             "\nExiting the program. Goodbye!"
         ],
         "invalid_input_prompts": [
-            "Enter Jimmer's hobby: ",
+            "Enter Link's hobby: ",
             "Enter friend's name: ",
             "Enter Reena's hobby: ",
-            "Enter Link's hobby: "
+            "Enter Jimmer's hobby: "
         ],
         "invalid_printed_messages": [
             "\nJimmer's hobby is Basketball.",
-            "\nJimmer is already in your dictionary.",
-            "\nReena added to your dictionary!",
-            "\nReena's hobby is Listening to Sonic Youth.",
+            "\nLink's hobby is Breaking pots.",
+            "\nLink added to your dictionary!",
             "\nJimmer added to your dictionary!",
+            "\nJimmer is already in your dictionary.",
+            "\nReena's hobby is Listening to Sonic Youth.",
             "\nInvalid choice. Please choose a valid option.",
-            "\nLink added to your dictionary!"
+            "\nReena added to your dictionary!"
         ],
         "bools": {
             "continue_prompting": false
@@ -265,8 +270,8 @@
         "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 2\nEnter a friend's name to find their hobby: Jimmer\n\nJimmer is not in the dictionary.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
     },
     {
-        "id_test_case": 6,
-        "test_case_description": "Multiple friends/hobbies",
+        "id_input_test_case": 6,
+        "input_test_case_description": "Entering multiple friends/hobbies and looking them up.",
         "inputs": [
             "1",
             "Jimmer",
@@ -279,6 +284,8 @@
             "Breaking pots",
             "2",
             "Reena",
+            "2",
+            "Link",
             "3"
         ],
         "input_prompts": [
@@ -298,6 +305,7 @@
             "\nReena added to your dictionary!",
             "\nLink added to your dictionary!",
             "\nReena's hobby is Listening to Sonic Youth.",
+            "\nLink's hobby is Breaking pots.",
             "\nExiting the program. Goodbye!"
         ],
         "invalid_input_prompts": [],
@@ -313,7 +321,7 @@
         "ints": {},
         "strings": {
             "choice": "3",
-            "name": "Reena",
+            "name": "Link",
             "hobby": "Breaking pots"
         },
         "floats": {},
@@ -325,6 +333,6 @@
                 "Link": "Breaking pots"
             }
         },
-        "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Jimmer\nEnter Jimmer's hobby: Basketball\n\nJimmer added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Reena\nEnter Reena's hobby: Listening to Sonic Youth\n\nReena added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Link\nEnter Link's hobby: Breaking pots\n\nLink added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 2\nEnter a friend's name to find their hobby: Reena\n\nReena's hobby is Listening to Sonic Youth.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
+        "example_output": "\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Jimmer\nEnter Jimmer's hobby: Basketball\n\nJimmer added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Reena\nEnter Reena's hobby: Listening to Sonic Youth\n\nReena added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 1\nEnter friend's name: Link\nEnter Link's hobby: Breaking pots\n\nLink added to your dictionary!\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 2\nEnter a friend's name to find their hobby: Reena\n\nReena's hobby is Listening to Sonic Youth.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 2\nEnter a friend's name to find their hobby: Link\n\nLink's hobby is Breaking pots.\n\nMenu:\n1. Add a Friend\n2. Find a Friend's Hobby\n3. Quit\nEnter an option (1, 2, or 3): 3\n\nExiting the program. Goodbye!"
     }
 ]
