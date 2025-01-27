@@ -2,7 +2,7 @@
 # Friend Tracker
 You’ll be creating a simple python program that allows users to manage a directory of their friends' hobbies. The program will prompt the user to add new friends with their corresponding hobbies and also allow them to look up a friend's hobby.
 
-Put your code in the `a04_friend_tracker.py` file. Do not edit or delete any other files.
+Put your code in the `a05_friend_tracker.py` file. Do not edit or delete any other files.
 
 ## Logical Flow
 Print out a menu that gives the user 3 options:

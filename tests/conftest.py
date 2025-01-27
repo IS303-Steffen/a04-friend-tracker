@@ -17,8 +17,8 @@ import importlib
 # ================
 
 # Enter the name of the file to be tested here, but leave out the .py file extention.
-solution_module = "a04_solution_friend_tracker"
-student_module = "a04_friend_tracker"
+solution_module = "a05_solution_friend_tracker"
+student_module = "a05_friend_tracker"
 
 def detect_module(solution_module, student_module):
     if os.path.exists(f"{solution_module}.py"):
