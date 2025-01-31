@@ -28,7 +28,6 @@ def detect_module(solution_module, student_module):
     else:
         return "PATH NOT FOUND"
 
-#default_module_to_test = "a6_function_smorgasbord"#detect_module(solution_module, student_module)
 default_module_to_test = detect_module(solution_module, student_module)
 
 # default per-test-case timeout amount in seconds:
@@ -44,7 +43,7 @@ raised_exceptions = []
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)
 
-expected_database_name = r"movies.db"
+expected_database_name = None
 
 # ========
 # FIXTURES
@@ -265,13 +264,14 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
         test_case_inputs = '\n'.join(input_with_quotes)
         exception_data = {
             'type': type(e).__name__,
-            'message': (f"{str(e)}\n\n\nHOW TO FIX IT:\n"
+            'message': (f"HOW TO FIX IT:\n"
                         f"--------------\n"
                         f"This error was very likely caused by your code asking for more input() calls than the input test case expected. "
                         f"To see where this is happening in your code, run your code and input THESE EXACT INPUTS IN THIS ORDER (without the quotations):\n\n"
                         f"{test_case_inputs}\n\n"
-                        f"If, after entering those exact inputs in that order, your code asks for another input, THAT is the cause of this error. "
-                        f"Make it so your code doesn't ask for any more inputs after the last input entered. If you believe that is a mistake, please "
+                        f"Your code should end after all of those inputs have been entered. If, after entering those exact inputs in that order, your code asks for another input, THAT is the cause of this error. "
+                        f"You likely wrote an if statement or loop in a way that it is asking for inputs again. Make it so your code doesn't ask for any more inputs after the last input entered. "
+                        f"If you believe that is a mistake, please "
                         f"reach out to your professor."),
             'traceback': traceback.format_exception(exc_type, exc_value, exc_tb)
         }
@@ -870,7 +870,7 @@ def format_error_message(custom_message: str = None,
     
     # some starting strings. All messages will be appended to error_message
     error_message = ''
-    divider = f"\n{"-"*line_length}\n"
+    divider = f"\n{'-'*line_length}\n"
     error_message += divider
     error_message += f"IS 303 STUDENTS: READ THE ERROR MESSAGES BELOW\n\n"
     error_message += "↓"*line_length + "\n"
@@ -884,7 +884,7 @@ def format_error_message(custom_message: str = None,
             f"\nINPUT TEST CASE DESCRIPTION: \"{input_test_case['input_test_case_description']}\"\n"
             f"\nFirst, read the error below. You can also see details for this test case in the 'descriptions_of_test_cases' folder in this repository.\n\n"
         ), line_length)
-        test_case_description = f"FOR INPUT TEST CASE: {input_test_case["id_input_test_case"]}"
+        test_case_description = f"FOR INPUT TEST CASE: {input_test_case['id_input_test_case']}"
     else:
         test_case_description = ''
 
@@ -983,7 +983,7 @@ def exception_message_for_students(exception_data, input_test_case, current_test
     # at a glance by clearly separating the location of the error and the error itself.
     error_location = error_location.replace('File "<string>"', f"{default_module_to_test}.py" )
     error_location = error_location.replace(', in <module>', '' )
-    error_message = f"\n{error_type}: {error_message_str}"
+    error_message = f"\n{error_type}: {error_message_str}" if error_type != "StopIteration" else error_message_str
     error_location = error_location.replace(error_message, '')
     
     display_inputs_option = False
@@ -995,9 +995,16 @@ def exception_message_for_students(exception_data, input_test_case, current_test
         input_test_case = {'id_input_test_case': None}
         input_test_case['input_test_case_description'] =  "No input test case for this test."
 
+    if error_type == "StopIteration":
+        pytest.fail(f"{format_error_message(
+            custom_message=(f"While trying to run {current_test_name}, the automated test couldn't complete because your code "
+                            f"called an input() function more times than it should have.\n\n"
+                            f"{error_message}\n\n"),
+            current_test_name=current_test_name,
+            input_test_case=input_test_case,
+            )}")
 
-
-    if error_type == "StopIteration" or error_detail in ["CLASS ERROR", "FUNCTION ERROR"]:
+    elif error_detail in ["CLASS ERROR", "FUNCTION ERROR"]:
         pytest.fail(f"{format_error_message(
             custom_message=(f"While trying to run {current_test_name}, python ran into an error.\n\n"
                             f"LOCATION OF ERROR:\n"
@@ -1047,7 +1054,7 @@ def timeout_message_for_students(input_test_case, current_test_name):
                                 f"HOW TO FIX IT:\n"
                                 f"--------------\n"
                                 f"You got a Timeout Error, meaning this Input Test Case didn't complete after {default_timeout_seconds} seconds. "
-                                f"The test timed out during Input Test Case {input_test_case["id_input_test_case"]}. To try and identify the problem, run your code like normal, but enter these EXACT inputs "
+                                f"The test timed out during Input Test Case {input_test_case['id_input_test_case']}. To try and identify the problem, run your code like normal, but enter these EXACT inputs "
                                 f"in this order (without the quotes):\n\n"
                                 f"{test_case_inputs}\n\n"
                                 f"Most likely, "
@@ -1219,9 +1226,8 @@ def get_similarity_feedback(normalized_expected_phrase, normalized_captured_stri
         similarity_threshold (float): The minimum similarity ratio to consider a close match.
         
     Returns:
-        str: A feedback message with close matches or a message indicating no similar strings were found.
+        str: A feedback message with close matches sorted by similarity or a message indicating no similar strings were found.
     """
-    
     # Check for an exact match
     if normalized_expected_phrase in normalized_captured_strings_list:
         return f"Exact match found for expected phrase: \"{normalized_expected_phrase}\""
@@ -1233,15 +1239,18 @@ def get_similarity_feedback(normalized_expected_phrase, normalized_captured_stri
         similarity = difflib.SequenceMatcher(None, normalized_expected_phrase, captured_string).ratio()
         
         if similarity >= similarity_threshold:
-            
             diff = difflib.ndiff([normalized_expected_phrase], [captured_string])
             diff_string = '\n'.join(diff)
-            similar_strings.append(f"Similarity: {similarity:.2f}\nDifferences (expected vs. actual):\n{diff_string}")
+            similar_strings.append((similarity, f"Similarity: {similarity:.2f}\nDifferences (expected vs. actual):\n{diff_string}"))
+    
+    # Sort similar strings by similarity score in descending order
+    similar_strings.sort(reverse=True, key=lambda x: x[0])
+    
     # Construct feedback message
     if similar_strings:
         feedback_message = (
-            "Here are the closest matches to the expected phrase:\n\n"
-            + "\n\n".join(similar_strings)
+            "Here are the closest matches to the expected phrase (sorted by similarity):\n\n"
+            + "\n\n".join(item[1] for item in similar_strings)
         )
     else:
         feedback_message = (
