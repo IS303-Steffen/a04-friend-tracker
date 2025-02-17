@@ -21,8 +21,7 @@ The tests will ignore spacing, capitalization, and punctuation, but you will fai
         <br>
         <br>
         See the <code>descriptions_ot_test_cases</code> folder for expected input prompts for each input test case.
-        </td>  
-        </td>
+        </td> 
         <td>25</td>
     </tr>
     <tr style="text-align: left">
