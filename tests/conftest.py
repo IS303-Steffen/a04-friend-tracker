@@ -8,7 +8,7 @@ if they reference it as a parameter.
 # =======
 
 import pytest, re, sys, os, json, traceback, pickle, inspect, multiprocessing, \
-       ast, importlib, difflib, copy, builtins, sqlite3, csv
+       ast, importlib, difflib, copy, builtins, sqlite3, csv, types
 from io import StringIO
 from collections.abc import Iterable
 from datetime import date, timedelta
@@ -1110,17 +1110,60 @@ def process_init_args(init_args, all_custom_classes):
             processed_args.append(arg)
     return processed_args
 
-def serialize_object(obj):
-    if isinstance(obj, dict):
-        return {k: serialize_object(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [serialize_object(v) for v in obj]
-    elif hasattr(obj, '__dict__'):
-        return serialize_object(vars(obj))
-    elif isinstance(obj, (int, float, str, bool, type(None), date, timedelta)):
+
+def serialize_object(obj, *, _seen=None, _depth=0, _max_depth=10):
+    """Serialize arbitrarily nested objects to JSON-friendly structures,
+    avoiding cycles and skipping non-data runtime objects.
+    """
+    if _seen is None:
+        _seen = set()
+
+    # Fast path: primitives (and a few primitives you already allow)
+    if isinstance(obj, (int, float, str, bool, type(None), date, timedelta)):
         return obj
-    else:
-        return str(obj)  # For any other types, convert to string
+
+    # Stop on cycles
+    oid = id(obj)
+    if oid in _seen:
+        return "<cycle>"
+
+    # Depth guard
+    if _depth >= _max_depth:
+        return repr(obj)
+
+    # Containers
+    if isinstance(obj, dict):
+        _seen.add(oid)
+        return {str(k): serialize_object(v, _seen=_seen, _depth=_depth+1, _max_depth=_max_depth)
+                for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        _seen.add(oid)
+        seq = [serialize_object(v, _seen=_seen, _depth=_depth+1, _max_depth=_max_depth) for v in obj]
+        return seq if isinstance(obj, list) else tuple(seq) if isinstance(obj, tuple) else set(seq)
+
+    # Skip/short-circuit noisy runtime objects that cause deep graphs
+    if isinstance(obj, (types.ModuleType,
+                        types.FunctionType, types.BuiltinFunctionType, types.MethodType,
+                        types.CodeType, types.FrameType, types.GeneratorType, types.CoroutineType)):
+        # Keep a short, harmless representation
+        name = getattr(obj, "__name__", obj.__class__.__name__)
+        return f"<{obj.__class__.__name__}:{name}>"
+
+    # Generic objects with __dict__
+    if hasattr(obj, "__dict__"):
+        _seen.add(oid)
+        try:
+            data = vars(obj)
+        except Exception:
+            return repr(obj)
+        return {
+            "__class__": obj.__class__.__name__,
+            "__data__": serialize_object(data, _seen=_seen, _depth=_depth+1, _max_depth=_max_depth),
+        }
+
+    # Fallback
+    return repr(obj)
+
 
 def test_classes(class_tests, globals_dict):
     """
