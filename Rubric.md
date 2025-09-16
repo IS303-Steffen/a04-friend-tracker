@@ -27,7 +27,7 @@ The tests will ignore spacing, capitalization, and punctuation, but you will fai
     <tr style="text-align: left">
         <td>2. Printed Messages</td>
         <td>
-        <b>Input test cases used:</b> 1-5<br><br>
+        <b>Input test cases used:</b> 1-6<br><br>
         Your printed output must be the same as the expected output of each input test case. This includes the correct BMI calculations and BMI categories.
         <br>
         <br>

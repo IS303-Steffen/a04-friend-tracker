@@ -3,22 +3,56 @@ conftest.py is a configuration file automatically accessed by pytest
 any @pytest.fixture created here is available to any other test file
 if they reference it as a parameter.
 '''
+# =======
+# IMPORTS
+# =======
 
-import pytest, re, sys, os, json, traceback, pickle, inspect, multiprocessing, ast, importlib, difflib, copy, builtins
+import pytest, re, sys, os, json, traceback, pickle, inspect, multiprocessing, \
+       ast, importlib, difflib, copy, builtins, sqlite3, csv
 from io import StringIO
 from collections.abc import Iterable
-from tests.test_cases.class_test_cases import test_cases_classes_dict
 from datetime import date, timedelta
-import importlib
 
+# ====================
+# LOCAL MODULE IMPORTS
+# ====================
+
+# Get the absolute path of the directory containing this script
+current_dir = os.path.dirname(__file__)
+
+# Construct the path to 'test_cases' and add it to sys.path
+test_cases_path = os.path.join(current_dir, "test_cases")
+sys.path.append(test_cases_path)
+
+from class_test_cases import test_cases_classes_dict # type: ignore
+from function_test_cases import test_cases_functions_dict # type: ignore
+
+def load_env_file(path):
+    if not os.path.exists(path):
+        return
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            # skip comments and blank lines
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")  # remove wrapping quotes if present
+            os.environ.setdefault(key, value)  # don't overwrite existing env
 
 # ================
 # GLOBAL VARIABLES
 # ================
-
+load_env_file(os.path.join(current_dir, ".env"))
 # Enter the name of the file to be tested here, but leave out the .py file extention.
-solution_module = "a05_solution_friend_tracker"
-student_module = "a05_friend_tracker"
+solution_module = os.getenv("SOLUTION_FILE")
+student_module = os.getenv("STUDENT_FILE")
+# solution_module_2 = os.getenv("SOLUTION_FILE_2", "a03_solution_snack_dictionary")
+# student_module_2  = os.getenv("STUDENT_FILE_2",  "a03_snack_dictionary")
+
 
 def detect_module(solution_module, student_module):
     if os.path.exists(f"{solution_module}.py"):
@@ -29,6 +63,7 @@ def detect_module(solution_module, student_module):
         return "PATH NOT FOUND"
 
 default_module_to_test = detect_module(solution_module, student_module)
+# default_module_to_test_2 = detect_module(solution_module_2, student_module_2)
 
 # default per-test-case timeout amount in seconds:
 default_timeout_seconds = 7
@@ -43,7 +78,25 @@ raised_exceptions = []
 # Path to the directory containing this file
 CURRENT_DIR = os.path.dirname(__file__)
 
-expected_database_name = None
+expected_database_name = r"movies.db"
+
+
+# =============
+# VERSION CHECK
+# =============
+
+# ANSI escape codes for colors
+YELLOW_BOLD = "\033[1;33m"
+RESET = "\033[0m"
+
+def pytest_sessionstart(session):
+    """Print a warning if Python version is below 3.9."""
+    if sys.version_info < (3, 9):
+        print(
+            f"{YELLOW_BOLD}\n"
+            "⚠️ WARNING: You are running a version of Python < 3.9. These tests have only been tested with Python 3.9 and up, so some tests may not behave as expected!\n"
+            f"{RESET}"
+        )
 
 # ========
 # FIXTURES
@@ -59,6 +112,10 @@ def input_test_cases():
         test_cases = json.load(f)
     
     return test_cases
+
+@pytest.fixture
+def function_test_cases():
+    return test_cases_functions_dict
 
 @pytest.fixture
 def class_test_cases(): 
@@ -91,20 +148,340 @@ def pytest_runtest_call(item):
         print(f"{test_name} has already been run in this session")
 
 
-def pytest_sessionfinish():
+def pytest_sessionfinish(session, exitstatus=None):
     """
-    This is a keyword name of a function for pytest.
-    It will run automatically when done with
-    a session of pytest. I used to have cleanup logic here, but
-    after refactoring it was no longer necessary. If I need cleanup
-    again, place logic here.
+    After all tests finish, emit:
+      - TEST_RESULTS_SUMMARY.md (summary table + per-test collapsible details; error-first layout)
+      - test_scores.csv (rows per test + TOTAL row)
     """
-    pass
+    if not PC_RESULTS:
+        return
+
+    # -------- Load input test cases for rich MD details (with path fallbacks) --------
+    input_cases_by_id = {}
+    candidates = [
+        os.path.join(CURRENT_DIR, 'test_cases', 'input_test_cases_final.json'),
+        os.path.join(CURRENT_DIR, 'input_test_cases_final.json'),
+        'test_cases/input_test_cases_final.json',
+        'input_test_cases_final.json',
+    ]
+    for fp in candidates:
+        try:
+            if os.path.exists(fp):
+                with open(fp, 'r', encoding='utf-8') as f:
+                    cases = json.load(f)
+                input_cases_by_id = {c.get("id_input_test_case"): c for c in cases if "id_input_test_case" in c}
+                break
+        except Exception:
+            # If a path fails, try the next one; we'll just omit case metadata if none work
+            pass
+
+    # -------- Aggregate per-test results --------
+    total_possible = sum(rec.max_score for rec in PC_RESULTS.values())
+    total_points = 0.0
+
+    per_test_rows = []
+    for test_id, rec in PC_RESULTS.items():
+        res = rec.results()
+        total_points += res["points"]
+        per_test_rows.append({
+            "test_id": test_id,
+            "passed": res["passed"],
+            "total": res["total"],
+            "points": res["points"],
+            "max_score": rec.max_score,
+            "per_case": round(res["per_case"], 4),
+            "cases": rec.cases,
+        })
+
+    # -------- Build Markdown --------
+    md = []
+    md.append("# Test Results Summary\n")
+
+    # Summary table (HTML so we can colspan the Total row)
+    md.append("<table>")
+    md.append("<thead><tr><th>Test</th><th>Cases Passed</th><th style='text-align:right'>Points</th></tr></thead>")
+    md.append("<tbody>")
+    for row in per_test_rows:
+        cases_cell = f"{row['passed']}/{row['total']}" if row["total"] > 1 else "-"
+        points_cell = f"{row['points']}/{row['max_score']}"
+        md.append(f"<tr><td>{row['test_id']}</td><td>{cases_cell}</td><td style='text-align:right'>{points_cell}</td></tr>")
+    md.append(f"<tr><td colspan='2'><strong>Total Score</strong></td><td style='text-align:right'><strong>{round(total_points, 2)}/{total_possible}</strong></td></tr>")
+    md.append("</tbody></table>\n")
+
+    # Per-test details (each test is its own H1 + its own <details>)
+    for row in per_test_rows:
+        failed = [c for c in row["cases"] if not c["passed"]]
+        if not failed:
+            continue
+
+        # Test heading and collapsible
+        md.append(f"# {row['test_id']}\n")
+        md.append("_Click the arrow below to see details for each failed test case._\n")
+        md.append(f"<details><summary>Details for {row['test_id']}</summary>\n")
+        md.append("<br>\n")
+
+        if row["total"] <= 1:
+            # -------- Binary/Non-case test (e.g., comments test): single collapsible, only custom_message --------
+            # Prefer the first failed record's custom message if present
+            first_failed = failed[0] if failed else None
+            if first_failed and first_failed.get("custom_message"):
+                md.append(first_failed["custom_message"])
+            else:
+                md.append("_No formatted error message available._")
+        else:
+            # -------- Multi-case test: each failed case gets its own collapsible + guidance sections --------
+            for case in failed:
+                case_id = case["id"]
+                if case_id == "runtime_error":
+                    md.append(f"## Runtime Error\n")
+                    md.append(case.get("custom_message") or "_No formatted error message available._")
+                    continue
+                cmeta = input_cases_by_id.get(case_id, {})
+                desc = cmeta.get("input_test_case_description", "N/A")
+                inputs = cmeta.get("inputs", [])
+                example_output = cmeta.get("example_output", "N/A")
+
+                case_title = f"Test Case {case_id}"
+                case_summary = f"{case_title} — {desc}" if desc else case_title
+
+                md.append(f"<details><summary>{case_summary}</summary>\n")
+                md.append("")
+                md.append(f"## {case_summary}")
+
+                # Error-first (the exact custom_message captured during the test)
+                if case.get("custom_message"):
+                    md.append(case["custom_message"])
+                else:
+                    md.append("_No formatted error message available._")
+
+                # Then metadata and guidance
+                md.append("\n### Having trouble fixing the error messages above?")
+                md.append("This test case is entering the inputs listed below with the expectation to get the *exact* same example output shown below. "
+                          "Try running your code using the inputs given below and if your code doesn't match the example output, alter your code until it does. "
+                          "\n\nRemember, you can always reach out to the TAs, professor, or AI if you need help. If you use AI, it will be better at helping you if "
+                          "you paste in the assignment instructions, your code, and the error message from above.")
+
+                md.append("\n#### Inputs")
+                md.append("The inputs below (without the quotes) will be entered one by one each time an `input()` function is found in your code.")
+                md.append("```")
+                for idx, val in enumerate(inputs, start=1):
+                    md.append(f'{idx}: "{val}"')
+                md.append("```")
+
+                md.append("\n#### Example Output")
+                md.append("This is what your terminal should look like if you use the inputs above when running your code.")
+                md.append("```")
+                md.append(example_output)
+                md.append("```")
+
+                md.append("</details>\n")  # end per-case collapsible
+
+        md.append("</details>\n")  # end test-level collapsible
+        md.append("<br>\n")  # spacer between tests
+
+    with open("TEST_RESULTS_SUMMARY.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(md))
+
+    # -------- CSV (unchanged except filenames) --------
+    csv_out_path = os.path.join("tests", "test_scores.csv")
+    os.makedirs(os.path.dirname(csv_out_path), exist_ok=True)
+    with open(csv_out_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["test_id", "passed_cases", "total_cases", "points_awarded", "max_score", "points_per_case"])
+        for row in per_test_rows:
+            writer.writerow([row["test_id"], row["passed"], row["total"], row["points"], row["max_score"], row["per_case"]])
+        writer.writerow(["TOTAL", "", "", round(total_points, 2), total_possible, ""])
+
+    # One-line terminal total
+    print(f"\n==> TOTAL SCORE: {round(total_points, 2)}/{total_possible} points\n")
+
+
+
+
+# ====================
+# PARTIAL CREDIT INFRA
+# ====================
+
+class PartialCreditRecorder:
+    def __init__(self, test_id, max_score = None):
+        self.test_id = test_id
+        self.max_score = (float(max_score) if max_score is not None else None)
+        self.cases = []  # list of dicts: {id, passed: bool, reason: str|None, custom_message: str|None}
+
+    def pass_case(self, case_id, note = None):
+        self.cases.append({"id": case_id, "passed": True, "reason": note, "custom_message": None})
+
+    def fail_case(self, case_id, reason = None, custom_message = None):
+        self.cases.append({"id": case_id, "passed": False, "reason": reason, "custom_message": custom_message})
+
+    def results(self):
+        total = max(1, len(self.cases))
+        passed = sum(1 for c in self.cases if c["passed"])
+        ms = self.max_score if self.max_score is not None else 0.0  # until test sets real score
+        per_case = (ms / total) if total else 0.0
+        points = round(passed * per_case, 2)
+        return {"total": total, "passed": passed, "per_case": per_case, "points": points}
+
+
+PC_RESULTS = {}
+
+def pc_get_or_create(test_id, max_score = None) -> PartialCreditRecorder:
+    rec = PC_RESULTS.get(test_id)
+    if rec is None:
+        rec = PartialCreditRecorder(test_id, max_score)
+        PC_RESULTS[test_id] = rec
+    else:
+        # If the caller provides a concrete score, set/upgrade it.
+        if max_score is not None:
+            try:
+                ms_new = float(max_score)
+                if rec.max_score is None or ms_new > rec.max_score:
+                    rec.max_score = ms_new
+            except Exception:
+                pass
+    return rec
+
+
+def pc_finalize_and_maybe_fail(rec: PartialCreditRecorder):
+    r = rec.results()
+    summary_line = f"{rec.test_id}: passed {r['passed']}/{r['total']} → {r['points']}/{rec.max_score} points"
+
+    failed = [c for c in rec.cases if not c["passed"]]
+    if failed:
+        failed_ids = ", ".join(str(c["id"]) for c in failed)
+        print(summary_line)
+        # concise, informative failure for the FAILURES section
+        raise AssertionError(
+            f"{summary_line}\nFailed case(s): {failed_ids}\nOpen TEST_RESULTS_SUMMARY.md (Preview) for full details."
+        )
+    else:
+        print(summary_line)
+
+def record_failure(current_test_name, *, formatted_message, input_test_case=None, case_id = None, reason = "exception"):
+    """
+    Unified failure logger:
+      - Records a failure into PartialCreditRecorder.
+      - Never raises (so test loops can continue).
+      - Does NOT set/alter max_score; tests set it explicitly.
+    """
+    try:
+        rec = pc_get_or_create(current_test_name, max_score=None)  # <-- do not set a score here
+        if case_id is None:
+            case_id = (input_test_case or {}).get("id_input_test_case", "runtime_error")
+        rec.fail_case(case_id, reason=reason, custom_message=formatted_message)
+    except Exception:
+        pass
+    return
 
 
 # =================================
 # RUNNING STUDENT CODE SUBPROCESSES
 # =================================
+
+_ALLOWED_PRIMITIVES = (str, int, float, bool, type(None))
+_CONTAINER_TYPES = (list, tuple, set, dict)
+
+def _is_from_student_module(value, student_module_name: str) -> bool:
+    mod = getattr(value, "__module__", None)
+    return (mod == student_module_name) or (mod is None)
+
+def _looks_like_harness(value) -> bool:
+    mod = getattr(value, "__module__", "") or ""
+    # exclude anything clearly from your harness/helpers
+    return (
+        "conftest" in mod
+        or "mock_input" in mod
+        or "pytest" in mod
+        or "importlib" in mod
+    )
+
+def _keep_symbol(name: str, value, student_module_name: str) -> bool:
+    # name-level filters
+    if not name:
+        return False
+    if name.startswith("_"):        # drop dunders and privates
+        return False
+    if "[" in name or "]" in name:  # safety against weird injected keys
+        return False
+
+    # type-level filters
+    if isinstance(value, type):
+        # keep classes, but only if they're defined by the student's file
+        return _is_from_student_module(value, student_module_name) and not _looks_like_harness(value)
+
+    # drop callables (functions, lambdas, bound methods, etc.)
+    if callable(value):
+        return False
+
+    # drop modules
+    import types as _types
+    if isinstance(value, _types.ModuleType):
+        return False
+
+    # drop obvious harness artifacts
+    if _looks_like_harness(value):
+        return False
+
+    # keep primitives and common containers
+    if isinstance(value, _ALLOWED_PRIMITIVES):
+        return True
+
+    if isinstance(value, _CONTAINER_TYPES):
+        return True
+
+    # for other objects: keep *only* if created in the student's module (e.g., instances of their classes)
+    return _is_from_student_module(value, student_module_name)
+
+def _clean_value(value, *, depth=0, max_depth=3, max_items=50):
+    if depth >= max_depth:
+        # stop recursion; give a tiny summary
+        return repr(value)[:200]
+
+    # primitives pass through
+    if isinstance(value, _ALLOWED_PRIMITIVES):
+        return value
+
+    # containers (recurse)
+    if isinstance(value, (list, tuple, set)):
+        out = []
+        for i, item in enumerate(value):
+            if i >= max_items:
+                out.append("... (truncated)")
+                break
+            out.append(_clean_value(item, depth=depth+1, max_depth=max_depth, max_items=max_items))
+        return out  # normalize to list for JSON-friendliness
+
+    if isinstance(value, dict):
+        out = {}
+        for i, (k, v) in enumerate(value.items()):
+            if i >= max_items:
+                out["..."] = "(truncated)"
+                break
+            # keys: keep as stringy repr to be safe
+            try:
+                clean_k = k if isinstance(k, (str, int, float, bool)) else repr(k)
+            except Exception:
+                clean_k = repr(k)
+            out[str(clean_k)] = _clean_value(v, depth=depth+1, max_depth=max_depth, max_items=max_items)
+        return out
+
+    # instances of student-defined classes: show their __dict__ (sanitized), plus class name
+    try:
+        cls = value.__class__
+        cls_name = getattr(cls, "__name__", type(value).__name__)
+        d = getattr(value, "__dict__", None)
+        if isinstance(d, dict):
+            return {
+                "__class__": cls_name,
+                "__data__": _clean_value(d, depth=depth+1, max_depth=max_depth, max_items=max_items),
+            }
+    except Exception:
+        pass
+
+    # fallback: short repr
+    return repr(value)[:200]
+
 
 def load_student_code(current_test_name, inputs, input_test_case=None, module_to_test=default_module_to_test,
                       function_tests=None, class_tests=None):
@@ -133,7 +510,9 @@ def load_student_code(current_test_name, inputs, input_test_case=None, module_to
             p.join()  # Ensure the main program waits for the subprocess to fully terminate
 
             # Handle timeout
-            pytest.fail(timeout_message_for_students(input_test_case, current_test_name))
+            timeout_message = timeout_message_for_students(input_test_case, current_test_name)
+            record_failure(current_test_name, formatted_message=timeout_message, input_test_case=input_test_case, reason="timeout error")
+
         else:
             # Subprocess finished; get the result
             if 'status' in shared_data:
@@ -144,9 +523,9 @@ def load_student_code(current_test_name, inputs, input_test_case=None, module_to
                     exception_data = shared_data['payload']  # Exception data dictionary
                     exception_message_for_students(exception_data, input_test_case, current_test_name)
                 else:
-                    pytest.fail("Unexpected status from subprocess. Contact your professor.")
+                    record_failure(current_test_name, formatted_message="Unexpected status from subprocess. Contact your professor.", input_test_case=input_test_case, reason="unexpected status")
             else:
-                pytest.fail("Subprocess finished without returning any data. Contact your professor.")
+                record_failure(current_test_name, formatted_message="Subprocess finished without returning any data. Contact your professor.", input_test_case=input_test_case, reason="unexpected status") 
     except Exception as e:
         exception_message_for_students(e, input_test_case, current_test_name)
 
@@ -184,28 +563,31 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
             'input': mock_input,     # Overrides input() in the student's code
         }
 
-        # Override exit and sys.exit to prevent termination
-        builtins.exit = lambda *args: (_ for _ in ()).throw(ExitCalled("exit() called"))
-        sys.exit = lambda *args: (_ for _ in ()).throw(ExitCalled("sys.exit() called"))
+        # Override exit, quit, and sys.exit to prevent termination
+        def override_exit_functions(*args):
+            raise ExitCalled("sys.exit, exit, or quit was called.")
 
-        # Prepare to capture 'main' function's locals
-        main_locals = {}
-
-        # Initialize raised_exceptions list
-        raised_exceptions = []
+        builtins.exit = override_exit_functions
+        sys.exit = override_exit_functions
+        builtins.quit = override_exit_functions
 
         # Read the student's code from the file
         module_file_path = module_to_test + '.py'
         with open(module_file_path, 'r', encoding='utf-8', errors='replace') as f:
             code = f.read()
 
-        # Build exception handlers mapping
+        # set up storage for tracking variables, raised exceptions, and exception handlers
+        scoped_locals = {}           
+        raised_exceptions = []       
         exception_handlers = get_exception_handlers_from_source(code)
 
-        # Create the trace function using the closure
-        trace_function = create_trace_function(main_locals, raised_exceptions, exception_handlers)
+        trace_function = create_trace_function(
+            raised_exceptions,
+            exception_handlers,
+            scoped_locals,
+            student_filename=os.path.abspath(module_file_path),
+        )
 
-        # Set the trace function
         sys.settrace(trace_function)
 
         # Redirect sys.stdout to capture print statements
@@ -214,7 +596,8 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
 
         # Execute the student's code within the controlled namespace
         try:
-            exec(code, globals_dict)
+            code_obj = compile(code, module_file_path, "exec")
+            exec(code_obj, globals_dict)
         except ExitCalled as e:
             print(f"Exit call intercepted: {e}")  # Log or handle exit calls
 
@@ -239,16 +622,32 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
         else:
             class_results = {"No classes tested": "No classes tested"}
 
-        # Collect global variables from the student's code and make them picklable
-        module_globals = {k: serialize_object(v) for k, v in globals_dict.items() if is_picklable(v)}
+        # ---- Build a single map of ALL variables (filtered & sanitized) ----
 
-        # Add main_locals to module_globals under a special key, ensuring picklability
-        module_globals['__main_locals__'] = serialize_object(main_locals)
-        
+        # 0) Student module name (exec ran as __main__)
+        student_module_name = "__main__"
+
+        # 1) Start from globals from the exec namespace, excluding builtins
+        raw_globals = {k: v for k, v in globals_dict.items() if k != "__builtins__"}
+
+        # 2) Merge in traced locals (these are what your tracer recorded during execution)
+        merged = {**raw_globals, **dict(scoped_locals)}
+
+        # 3) Filter and sanitize
+        filtered = {
+            name: _clean_value(val)
+            for name, val in merged.items()
+            if _keep_symbol(name, val, student_module_name)
+        }
+
+        # 4) Save
+        all_variables = filtered
+
+
         # add each payload into a dictionary:
         manager_payload['captured_input_prompts'] = captured_input_prompts
         manager_payload['captured_output'] = captured_output
-        manager_payload['module_globals'] = module_globals
+        manager_payload['all_variables'] = all_variables
         manager_payload['function_results'] = function_results
         manager_payload['class_results'] = class_results
         manager_payload['raised_exceptions'] = raised_exceptions
@@ -258,17 +657,17 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
         shared_data['payload'] = manager_payload
 
     except StopIteration as e:
+        sys.settrace(None)
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
         input_with_quotes = [f'{index}: "{input}"' for index, input in enumerate(input_test_case["inputs"], start=1)]
         test_case_inputs = '\n'.join(input_with_quotes)
         exception_data = {
             'type': type(e).__name__,
-            'message': (f"HOW TO FIX IT:\n"
-                        f"--------------\n"
+            'message': (f"### How to fix it:\n"
                         f"This error was very likely caused by your code asking for more input() calls than the input test case expected. "
-                        f"To see where this is happening in your code, run your code and input THESE EXACT INPUTS IN THIS ORDER (without the quotations):\n\n"
-                        f"{test_case_inputs}\n\n"
+                        f"To see where this is happening in your code, run your code and input THESE EXACT INPUTS IN THIS ORDER (without the quotations):\n"
+                        f"```\n{test_case_inputs}\n```\n"
                         f"Your code should end after all of those inputs have been entered. If, after entering those exact inputs in that order, your code asks for another input, THAT is the cause of this error. "
                         f"You likely wrote an if statement or loop in a way that it is asking for inputs again. Make it so your code doesn't ask for any more inputs after the last input entered. "
                         f"If you believe that is a mistake, please "
@@ -279,6 +678,7 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
         shared_data['payload'] = exception_data
 
     except EOFError as e:
+        sys.settrace(None)
         # Send the exception back as a dictionary
         exc_type, exc_value, exc_tb = sys.exc_info()
         exception_data = {
@@ -291,7 +691,9 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
         shared_data['payload'] = exception_data
 
     except Exception as e:
+        sys.settrace(None)
         # Send the exception back as a dictionary
+
         exc_type, exc_value, exc_tb = sys.exc_info()
         exception_data = {
             'type': type(e).__name__,
@@ -300,6 +702,8 @@ def _load_student_code_subprocess(shared_data, current_test_name, inputs, input_
         }
         shared_data['status'] = 'exception'
         shared_data['payload'] = exception_data
+        
+
 
     finally:
         sys.settrace(None)
@@ -325,88 +729,91 @@ def is_picklable(obj):
 # TRACE FUNCTIONS
 # (for tracking exceptions variables in student code)
 # ===================================================
+def _good_var_name(name: str) -> bool:
+    if not isinstance(name, str) or not name:
+        return False
+    if name.startswith("_"):                 # drop dunders/privates
+        return False
+    if "." in name or "<" in name or ">" in name or "[" in name or "]" in name:
+        return False
+    return name.isidentifier()
 
-def create_trace_function(main_locals, raised_exceptions, exception_handlers):
+def create_trace_function(raised_exceptions, exception_handlers, scoped_locals,
+                          *, student_filename: str):
+    """
+    Collect locals from student frames only (by filename) and track exceptions.
+    Locals are flattened as 'outer.inner.var' but only when names are clean.
+    """
     pending_exception = {'type': None, 'frame': None}
+    call_stack = []  # only for frames from the student's file
+
+    def _in_student_file(frame) -> bool:
+        try:
+            fn = os.path.abspath(frame.f_code.co_filename)
+            # accept compiled-from-string as a fallback (optional)
+            if fn == "<string>":
+                return True
+            return fn == os.path.abspath(student_filename)
+        except Exception:
+            return False
+
+
+    def _add_scoped_locals(frame):
+        if not _in_student_file(frame):
+            return
+        prefix = ".".join(call_stack)
+        for k, v in frame.f_locals.items():
+            if k == "__builtins__" or not _good_var_name(k):
+                continue
+            fq_key = f"{prefix}.{k}" if prefix else k
+            serialized = serialize_object(v)
+            # accumulate if same var name appears multiple times
+            if fq_key in scoped_locals:
+                prev = scoped_locals[fq_key]
+                scoped_locals[fq_key] = prev + [serialized] if isinstance(prev, list) else [prev, serialized]
+            else:
+                scoped_locals[fq_key] = serialized
 
     def trace_function(frame, event, arg):
-        nonlocal pending_exception
+        nonlocal pending_exception, call_stack
+
         if event == 'call':
-            code_obj = frame.f_code
-            func_name = code_obj.co_name
-            if func_name == 'main':
-                # We are entering the 'main' function
-                def trace_lines(frame, event, arg):
-                    if event == 'return':
-                        # We are exiting 'main', capture locals
-                        main_locals.update(frame.f_locals)
-                    elif event == 'exception':
-                        exc_type, exc_value, exc_traceback = arg
-                        exception_name = exc_type.__name__
-                        raised_exceptions.append({'exception': exception_name, 'handled_by': None})
-                        pending_exception['type'] = exception_name
-                        pending_exception['frame'] = frame
-                    elif event == 'line':
-                        if pending_exception['type']:
-                            lineno = frame.f_lineno
-                            # Check if current line is within any exception handler
-                            for handler in exception_handlers:
-                                if handler['start_lineno'] <= lineno <= handler['end_lineno']:
-                                    # Found the handler
-                                    handled_exception_type = handler['type']
-                                    raised_exceptions[-1]['handled_by'] = handled_exception_type
-                                    # Reset pending_exception
-                                    pending_exception['type'] = None
-                                    pending_exception['frame'] = None
-                                    break
-                    return trace_lines
-                return trace_lines
-            else:
-                # For other functions, we can still track exceptions
-                def trace_all(frame, event, arg):
-                    if event == 'exception':
-                        exc_type, exc_value, exc_traceback = arg
-                        exception_name = exc_type.__name__
-                        raised_exceptions.append({'exception': exception_name, 'handled_by': None})
-                        pending_exception['type'] = exception_name
-                        pending_exception['frame'] = frame
-                    elif event == 'line':
-                        if pending_exception['type']:
-                            lineno = frame.f_lineno
-                            # Check if current line is within any exception handler
-                            for handler in exception_handlers:
-                                if handler['start_lineno'] <= lineno <= handler['end_lineno']:
-                                    # Found the handler
-                                    handled_exception_type = handler['type']
-                                    raised_exceptions[-1]['handled_by'] = handled_exception_type
-                                    # Reset pending_exception
-                                    pending_exception['type'] = None
-                                    pending_exception['frame'] = None
-                                    break
-                    return trace_all
-                return trace_all
+            # only push student frames onto the stack
+            if _in_student_file(frame):
+                call_stack.append(frame.f_code.co_name)
+            return trace_function
+
+        elif event == 'return':
+            if _in_student_file(frame):
+                _add_scoped_locals(frame)
+                if call_stack:
+                    call_stack.pop()
+
         elif event == 'exception':
+            # still record exceptions globally, but only attach locals if student frame
             exc_type, exc_value, exc_traceback = arg
             exception_name = exc_type.__name__
             raised_exceptions.append({'exception': exception_name, 'handled_by': None})
             pending_exception['type'] = exception_name
             pending_exception['frame'] = frame
+            _add_scoped_locals(frame)
+
         elif event == 'line':
-            if pending_exception['type']:
+            # keep your handled-by detection, gated to student frames
+            if pending_exception['type'] and _in_student_file(frame):
                 lineno = frame.f_lineno
-                # Check if current line is within any exception handler
                 for handler in exception_handlers:
                     if handler['start_lineno'] <= lineno <= handler['end_lineno']:
-                        # Found the handler
-                        handled_exception_type = handler['type']
-                        raised_exceptions[-1]['handled_by'] = handled_exception_type
-                        # Reset pending_exception
+                        if raised_exceptions:
+                            raised_exceptions[-1]['handled_by'] = handler['type']
                         pending_exception['type'] = None
                         pending_exception['frame'] = None
                         break
         return trace_function
 
     return trace_function
+
+
 
 def get_exception_handlers_from_source(source):
     exception_handlers = []
@@ -569,11 +976,11 @@ def test_functions(function_tests, globals_dict, instance=None):
         if not func_found:
             exception_data = {
                     'type': 'Function not found',
-                    'message': (f"This test is looking specifically for the function/method '{func_name_original}' in {context},\n"
-                                f"But it couldn't find it, nor any of its accepted variations:\n{', '.join(function_variations[1:])}\n\n"
+                    'message': (f"This test is looking specifically for the function/method '{func_name_original}' in {context}, "
+                                f"But it couldn't find it, nor any of its accepted variations:\n\n{', '.join(function_variations[1:])}\n\n"
                                 f"Make sure you are spelling the function/method name correctly, and that you didn't name any other variables "
                                 f"in your code the exact same name as the function. Below are all of "
-                                f"the functions/methods that the test could find in {context}:\n{all_functions_names}"),
+                                f"the functions/methods that the test could find in {context}:\n\n{all_functions_names}"),
                     'custom_location': f'test_classes in conftest.py',
                     'detail': 'CLASS ERROR'
             }
@@ -604,6 +1011,8 @@ def test_functions(function_tests, globals_dict, instance=None):
                     # first store the initial state of the object:
                         object_state = get_object_state(instance)
                         test_case.setdefault('final_obj_state', []).append(object_state)
+                
+                
 
             except Exception as e:
                 if len(args) > 0:
@@ -614,8 +1023,9 @@ def test_functions(function_tests, globals_dict, instance=None):
                     init_args_str = "No arguments"
                 exception_data = {
                     'type': type(e).__name__,
-                    'message': (f"{type(e).__name__}: {e}\n\n"
-                                f"Your code gave the above error while trying to run {func_name_original}, with these arguments:\n\n"
+                    'message': (f"Your code gave the following error while trying to run the function {func_name_original}:\n\n"
+                                f"{type(e).__name__}: {e}\n\n"
+                                f"{func_name_original} was using these arguments when it ran into the error:\n\n"
                                 f"{func_name_original.upper()} ARGUMENTS:\n"
                                 f"{'-'*len(f'{func_name_original.upper()} ARGUMENTS:')}\n"
                                 f"{init_args_str}\n\n"
@@ -626,6 +1036,7 @@ def test_functions(function_tests, globals_dict, instance=None):
                     'detail': 'FUNCTION ERROR'
                 }
                 test_case["FUNCTION ERROR"] = exception_data
+                function_results["FUNCTION ERROR"] = exception_data
                 return function_results
         else:
             exception_data = {
@@ -636,8 +1047,11 @@ def test_functions(function_tests, globals_dict, instance=None):
                     'detail': 'FUNCTION ERROR'
                 }
             test_case["FUNCTION ERROR"] = exception_data
+            function_results["FUNCTION ERROR"] = exception_data
             return function_results
-
+        
+    # If no errors occured while trying to run the function and store its results, store those here
+    function_results['function_results'] = function_tests
     return function_results
 
 def update_object_from_dict(obj, update_dict):
@@ -794,7 +1208,7 @@ def test_classes(class_tests, globals_dict):
                 method_test_cases = [method_test_case for method_test_case in class_test.get('method_test_cases') if method_test_case.get('function_name') == method_to_test]
 
                 function_results = test_functions(method_test_cases, globals_dict, instance=obj)
-                if function_results:
+                if function_results.get("FUNCTION ERROR"):
                     class_tests["FUNCTION ERROR"] = function_results
                 pass
                     
@@ -871,71 +1285,10 @@ def format_error_message(custom_message: str = None,
     # some starting strings. All messages will be appended to error_message
     error_message = ''
     divider = f"\n{'-'*line_length}\n"
-    error_message += divider
-    error_message += f"IS 303 STUDENTS: READ THE ERROR MESSAGES BELOW\n\n"
-    error_message += "↓"*line_length + "\n"
-    if input_test_case:
-        error_message += divider
-        error_message += f"WHICH TEST FAILED?"
-        error_message += divider
-        error_message += insert_newline_at_last_space((
-            f"\nTEST FAILED: {current_test_name}"
-            f"\nDURING INPUT TEST CASE: {input_test_case['id_input_test_case']}"
-            f"\nINPUT TEST CASE DESCRIPTION: \"{input_test_case['input_test_case_description']}\"\n"
-            f"\nFirst, read the error below. You can also see details for this test case in the 'descriptions_of_test_cases' folder in this repository.\n\n"
-        ), line_length)
-        test_case_description = f"FOR INPUT TEST CASE: {input_test_case['id_input_test_case']}"
-    else:
-        test_case_description = ''
 
     if custom_message:
-        error_message += divider
-        error_message += f"WHAT WENT WRONG:"
-        error_message += divider
-        error_message += insert_newline_at_last_space("\n" + custom_message, line_length)
-
-    if display_inputs:
-        input_with_quotes = [f'{index}: "{input}"' for index, input in enumerate(input_test_case["inputs"], start=1)]
-        inputs_concatenated = '\n'.join(input_with_quotes)
-        error_message += divider
-        error_message += f"INPUTS ENTERED {test_case_description}"
-        error_message += divider
-        error_message += insert_newline_at_last_space(f"\nThese inputs (without the quotes) will be entered in this exact order during this test case:\n\n\n", line_length)
-        error_message += inputs_concatenated + "\n"
-
-    if display_input_prompts:
-        expected_input_prompts_concatenated = '\n'.join(input_test_case["input_prompts"])
-        error_message += divider
-        error_message += f"EXPECTED INPUT PROMPTS {test_case_description}"
-        error_message += divider
-        error_message += insert_newline_at_last_space(f"\nThese inputs prompts must appear at least once during this test case:\n\n\n", line_length)
-        error_message += expected_input_prompts_concatenated + "\n"
-
-    if display_invalid_input_prompts:
-        invalid_input_prompts_concatenated = '\n'.join(input_test_case["invalid_input_prompts"])
-        error_message += divider
-        error_message += f"INVALID INPUT PROMPTS {test_case_description}"
-        error_message += divider
-        error_message += insert_newline_at_last_space(f"\nThe test will fail if any of the following appear during this test case:\n\n\n", line_length)
-        error_message += invalid_input_prompts_concatenated + "\n"
-
-    if display_printed_messages:
-        expected_printed_messages_concatenated = '\n'.join(input_test_case["printed_messages"])
-        error_message += divider
-        error_message += f"EXPECTED PRINTED MESSAGES {test_case_description}"
-        error_message += divider               
-        error_message += insert_newline_at_last_space(f"\nThese printed messages must appear at least once during this test case:\n\n\n", line_length)
-        error_message += expected_printed_messages_concatenated + "\n"
-
-    if display_invalid_printed_messages:
-        invalid_printed_messages_concatenated = '\n'.join(input_test_case["invalid_printed_messages"])
-        error_message += divider
-        error_message += f"INVALID PRINTED MESSAGES {test_case_description}"
-        error_message += divider
-        error_message += insert_newline_at_last_space(f"\nThe test will fail if any of the following appear during this test case:\n\n\n", line_length)
-        error_message += invalid_printed_messages_concatenated + "\n"
-
-    error_message += "\n"
+        error_message += f"### Error Message (what went wrong):\n"
+        error_message += custom_message
 
     return error_message
 
@@ -984,7 +1337,8 @@ def exception_message_for_students(exception_data, input_test_case, current_test
     error_location = error_location.replace('File "<string>"', f"{default_module_to_test}.py" )
     error_location = error_location.replace(', in <module>', '' )
     error_message = f"\n{error_type}: {error_message_str}" if error_type != "StopIteration" else error_message_str
-    error_location = error_location.replace(error_message, '')
+    error_message = error_message.strip()
+    error_location = error_location.replace(error_message, '').strip()
     
     display_inputs_option = False
     if input_test_case:
@@ -996,46 +1350,55 @@ def exception_message_for_students(exception_data, input_test_case, current_test
         input_test_case['input_test_case_description'] =  "No input test case for this test."
 
     if error_type == "StopIteration":
-        pytest.fail(f"{format_error_message(
-            custom_message=(f"While trying to run {current_test_name}, the automated test couldn't complete because your code "
-                            f"called an input() function more times than it should have.\n\n"
-                            f"{error_message}\n\n"),
-            current_test_name=current_test_name,
-            input_test_case=input_test_case,
-            )}")
+        custom_message = (f"While trying to run {current_test_name}, the automated test couldn't complete because your code "
+            f"called an input() function more times than it should have.\n\n"
+            f"{error_message}\n\n")
+
+        formatted_message = format_error_message( 
+                                custom_message=custom_message,
+                                current_test_name=current_test_name,
+                                input_test_case=input_test_case)
+
+        record_failure(current_test_name, formatted_message=formatted_message, input_test_case=input_test_case, reason="student exception")
+        return  # keep running other cases
+
 
     elif error_detail in ["CLASS ERROR", "FUNCTION ERROR"]:
-        pytest.fail(f"{format_error_message(
-            custom_message=(f"While trying to run {current_test_name}, python ran into an error.\n\n"
-                            f"LOCATION OF ERROR:\n"
-                            f"------------------"
-                            f"\n{error_location}\n\n"
-                            f"ERROR MESSAGE:\n"
-                            f"--------------"
-                            f"{error_message}\n\n"),
-            current_test_name=current_test_name,
-            input_test_case=input_test_case,
-            )}")
+        custom_message = (f"While trying to run {current_test_name}, python ran into an error.\n\n"
+            f"### Location of the error:\n"
+            f"```\n{error_location}\n```\n"
+            f"### Error message:\n"
+            f"```\n{error_message}\n```\n")
+        
+        formatted_message = format_error_message(
+                                custom_message=custom_message,
+                                current_test_name=current_test_name,
+                                input_test_case=input_test_case)
+
+        record_failure(current_test_name, formatted_message=formatted_message, input_test_case=input_test_case, reason="student exception")
+        return  # keep running other cases
+
     else:
-        # Call pytest.fail with the formatted error message
-        pytest.fail(f"{format_error_message(
-            custom_message=(f"While trying to run {current_test_name}, python ran into an error.\n\n"
-                            f"LOCATION OF ERROR:\n"
-                            f"------------------\n"
-                            f"{error_location}\n\n"
-                            f"ERROR MESSAGE:\n"
-                            f"--------------\n"
-                            f"{error_message}\n\n"
-                            f"HOW TO FIX IT:\n"
-                            f"--------------\n"
-                            f"If the error occurred in {default_module_to_test}.py or another .py file that you wrote, set a breakpoint at the location in that file where "
-                            f"the error occurred and see if you can repeat the error by running your code using the inputs for Test Case {input_test_case['id_input_test_case']}. "
-                            f"That should help you see what went wrong.\n\n"
-                            f"If the error occurred in a different file, reach out to your professor.\n\n"),
+        custom_message = (f"While trying to run {current_test_name}, python ran into an error.\n\n"
+            f"### Location of the error:\n"
+            f"```\n{error_location}\n```\n"
+            f"### Error message:\n"
+            f"```\n{error_message}\n```\n"
+            f"### How to fix it:\n"
+            f"If the error occurred in {default_module_to_test}.py or another .py file that you wrote, set a breakpoint at the location in that file where "
+            f"the error occurred and see if you can repeat the error by running your code using the inputs for Test Case {input_test_case['id_input_test_case']}. "
+            f"That should help you see what went wrong.\n\n"
+            f"If the error occurred in a different file (for example, a file like \"test_01_\" or \"conftest\", etc.), reach out to your professor ASAP. The error might be with the test, not your code.\n\n")
+        
+        formatted_message = format_error_message(
+            custom_message=custom_message,
             current_test_name=current_test_name,
             input_test_case=input_test_case,
-            display_inputs=display_inputs_option
-            )}")
+            display_inputs=display_inputs_option)
+        
+        record_failure(current_test_name, formatted_message=formatted_message, input_test_case=input_test_case, reason="student exception")
+        return  # keep running other cases
+
 
 def timeout_message_for_students(input_test_case, current_test_name):
     """
@@ -1048,19 +1411,15 @@ def timeout_message_for_students(input_test_case, current_test_name):
     test_case_inputs = '\n'.join(test_case_inputs)
 
     return format_error_message(
-                custom_message=(f"ERROR MESSAGE:\n"
-                                f"--------------\n"
-                                f"TimeoutError\n\n"
-                                f"HOW TO FIX IT:\n"
+                custom_message=(f"TimeoutError\n\n"
+                                f"### How to fix it:\n"
                                 f"--------------\n"
                                 f"You got a Timeout Error, meaning this Input Test Case didn't complete after {default_timeout_seconds} seconds. "
-                                f"The test timed out during Input Test Case {input_test_case['id_input_test_case']}. To try and identify the problem, run your code like normal, but enter these EXACT inputs "
-                                f"in this order (without the quotes):\n\n"
-                                f"{test_case_inputs}\n\n"
+                                f"The test timed out during Input Test Case {input_test_case.get('id_input_test_case')}. To try and identify the problem, run your code like normal, but enter these EXACT inputs "
+                                f"in this order (without the quotes):\n"
+                                f"```\n{test_case_inputs}\n```\n"
                                 f"Most likely, "
-                                f"you wrote your code in a way that the inputs of this Input Test Case make it so your code never exits properly. "
-                                f"Double check the 'Input Test Case' examples in the instructions and make sure your code isn't asking for additional "
-                                f"or fewer inputs than the test case expects.\n\n"),
+                                f"when your code uses these inputs your code never exits properly. This could be due to you asking for more inputs() than the test is expecting, or due to an infinite loop.\n\n"),
                 input_test_case=input_test_case,
                 current_test_name=current_test_name,
                 )
@@ -1239,10 +1598,25 @@ def get_similarity_feedback(normalized_expected_phrase, normalized_captured_stri
         similarity = difflib.SequenceMatcher(None, normalized_expected_phrase, captured_string).ratio()
         
         if similarity >= similarity_threshold:
-            diff = difflib.ndiff([normalized_expected_phrase], [captured_string])
-            diff_string = '\n'.join(diff)
-            similar_strings.append((similarity, f"Similarity: {similarity:.2f}\nDifferences (expected vs. actual):\n{diff_string}"))
-    
+            # 1) Materialize the iterator into a list
+            diff_lines = list(difflib.ndiff([normalized_expected_phrase], [captured_string]))
+
+            # 2) Build a labeled copy instead of assigning into the iterator
+            labeled = []
+            for line in diff_lines:
+                if line.startswith('- '):
+                    labeled.append("Expected:".ljust(12) + line)
+                elif line.startswith('+ '):
+                    labeled.append("Yours:".ljust(12) + line)
+                elif line.startswith('? '):
+                    labeled.append("".ljust(12) + line)  # keep alignment
+                else:
+                    labeled.append("".ljust(12) + line)
+
+            diff_string = '\n'.join(labeled)
+            similar_strings.append(
+                (similarity, f"Similarity: {similarity:.2f}\n{diff_string}")
+            )
     # Sort similar strings by similarity score in descending order
     similar_strings.sort(reverse=True, key=lambda x: x[0])
     
@@ -1291,8 +1665,6 @@ def normalize_dataframe(df):
     # Normalize every value in the DataFrame
     df = df.map(normalize_text)
     return df
-
-import sqlite3
 
 def clear_database(table_name):
     try:

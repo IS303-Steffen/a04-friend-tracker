@@ -42,9 +42,31 @@ for idx, test_case in enumerate(test_cases, start=1):
 {description}
 
 ## Inputs
+The inputs below (without the quotes) will be entered one by one each time an `input()` function is found in your code.
 ```
 {inputs if inputs else "No inputs used in this test case"}
 ```
+
+## Example Output
+This is what your terminal should look like if you use the inputs above when running your code.
+```
+{example_output.strip() if example_output else "No output found"}
+```
+"""
+
+    # Write the content to the Markdown file
+    with open(file_path, "w") as md_file:
+        md_file.write(markdown_content)
+
+print(f"Markdown files have been successfully created in the '{output_folder}' folder.")
+
+
+
+
+'''
+If I want to put these sections back in, reference the below. I'm taking them out just to simplify the file for
+students.
+
 
 ## Expected Input Prompts
 ```
@@ -56,14 +78,8 @@ for idx, test_case in enumerate(test_cases, start=1):
 {printed_messages if printed_messages else "No printed messaged in this test case"}
 ```
 
-## Example Output **(combined Inputs, Input Prompts, and Printed Messages)**
-```
-{example_output.strip() if example_output else "No output found"}
-```
-"""
 
-    # Write the content to the Markdown file
-    with open(file_path, "w") as md_file:
-        md_file.write(markdown_content)
 
-print(f"Markdown files have been successfully created in the '{output_folder}' folder.")
+
+
+'''

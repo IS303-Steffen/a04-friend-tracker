@@ -1,8 +1,8 @@
-#### Assignment 05
+#### Assignment 04
 # Friend Tracker
 You’ll be creating a simple python program that allows users to manage a directory of their friends' hobbies. The program will prompt the user to add new friends with their corresponding hobbies and also allow them to look up a friend's hobby.
 
-Put your code in the `a05_friend_tracker.py` file. Do not edit or delete any other files.
+Put your code in the `a04_friend_tracker.py` file. Do not edit or delete any other files.
 
 ## Logical Flow
 Print out a menu that gives the user 3 options:
@@ -25,7 +25,7 @@ Print out a menu that gives the user 3 options:
     - `Enter <friend's name>'s hobby`: 
 - Then store that data in a dictionary, with the friend’s name as the key and the hobby as the value, and print out:
     - `<friend name> added to your dictionary!`
-- But, before you add the friend/hobby to the dictionary, and before you ask `Enter <friend's name>'s hobby` check to see if that friend is already in the dictionary. If they are, don’t try to add them, and don't ask for their hobby, but instead print out:
+- But, *BEFORE* you add the friend/hobby to the dictionary, and *BEFORE* you ask `Enter <friend's name>'s hobby` check to see if that friend is already in the dictionary. If they are, don’t try to add them, and don't ask for their hobby, but instead print out:
     - `<friend name> is already in your dictionary.`
 
 #### Tip:
@@ -55,8 +55,12 @@ Print out a menu that gives the user 3 options:
 > ### After the user completes any option:
 The menu with the 3 choices should continually reappear every time choice 1, 2, or an invalid input is entered, meaning the user can input as many friends/hobbies as they want, and search for friends’ hobbies as many times as they want. The program should only end if the user enters 3 when the menu is displayed.
 
-## Grading Rubric
-See the Rubric.md file.
+## Rubric
+- See `RUBRIC.md` for details on each of the tests you're scored on.
+- To see what score you'll receive, run the tests using the testing tab (it looks like a beaker).
+    - In the testing tab, press `Configure Python Tests`, then choose `pytest`, then `tests`, and then press the `Run Tests` button.
+        - If you accidentally choose the wrong options for `Configure Python Tests`, to choose again, go to `View` > `Command Palette` and then type `Python: Configure Tests` and hit enter. Then choose the options above again.
+- To see your results and any error messages, right click the `TEST_RESULTS_SUMMARY.md` file and choose `Open Preview`.
 
 ## Example Output
 Below is an example of

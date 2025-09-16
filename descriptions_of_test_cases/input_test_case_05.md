@@ -4,29 +4,15 @@
 Looking up a name that doesn't exist before entering any names.
 
 ## Inputs
+The inputs below (without the quotes) will be entered one by one each time an `input()` function is found in your code.
 ```
 1: "2"
 2: "Jimmer"
 3: "3"
 ```
 
-## Expected Input Prompts
-```
-1: "Enter an option (1, 2, or 3): "
-2: "Enter a friend's name to find their hobby: "
-```
-
-## Expected Printed Messages
-```
-1: "Menu:"
-2: "1. Add a Friend"
-3: "2. Find a Friend's Hobby"
-4: "3. Quit"
-5: "Jimmer is not in the dictionary."
-6: "Exiting the program. Goodbye!"
-```
-
-## Example Output **(combined Inputs, Input Prompts, and Printed Messages)**
+## Example Output
+This is what your terminal should look like if you use the inputs above when running your code.
 ```
 Menu:
 1. Add a Friend
